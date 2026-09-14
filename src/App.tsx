@@ -1,6 +1,7 @@
 import { HashRouter, NavLink, Route, Routes } from 'react-router-dom';
 import Home from './pages/Home';
 import Play from './pages/Play';
+import Editor from './pages/Editor';
 
 // 使用 HashRouter：GitHub Pages 纯静态托管无需配置服务端回退路由。
 export default function App() {
@@ -13,11 +14,13 @@ export default function App() {
         <nav className="app-header__nav" aria-label="主导航">
           <NavLink to="/">首页</NavLink>
           <NavLink to="/play">游戏</NavLink>
+          <NavLink to="/editor">编辑器</NavLink>
         </nav>
       </header>
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/play" element={<Play />} />
+        <Route path="/editor" element={<Editor />} />
       </Routes>
     </HashRouter>
   );

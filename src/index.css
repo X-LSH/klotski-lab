@@ -1,0 +1,52 @@
+/* 全局样式（阶段 0 基础版，最终视觉在第 9 阶段统一打磨） */
+:root {
+  --bg: #0b1020;
+  --fg: #e8ecf8;
+  --accent: #4a8fe0;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    'PingFang SC',
+    'Microsoft YaHei',
+    sans-serif;
+}
+
+.home {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+
+.home__title {
+  font-size: 48px;
+  margin: 0;
+}
+
+.home__subtitle {
+  margin: 0;
+  opacity: 0.8;
+}
+
+.home__start {
+  padding: 10px 32px;
+  font-size: 16px;
+  border: none;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+}

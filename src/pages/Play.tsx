@@ -1,5 +1,5 @@
 /**
- * 游戏页：棋盘 + 操作 + 求解 + 回放 + 胜利结算。
+ * 游戏页：棋盘 + 操作 + 求解（Worker，支持进度 / 停止 / 算法对比）+ 回放 + 胜利结算。
  * React 只管理状态与展示，所有移动合法性都经由 core 判断。
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -7,33 +7,40 @@ import type { Move } from '../types';
 import { CLASSIC_PUZZLE } from '../core/presets';
 import { createInitialState } from '../core/state';
 import { useGame } from '../hooks/useGame';
-import { solvePuzzle } from '../solver/solver-service';
-import type { SolveResult } from '../solver/result';
+import { solvePuzzle, solvePuzzleWithHandle } from '../solver/solver-service';
+import type { SolveHandle } from '../solver/solver-client';
+import type { SolveProgress, SolveResult } from '../solver/result';
+import { ALL_ALGORITHMS, type AlgorithmName } from '../solver/registry';
 import { buildReplaySession, clampIndex, intervalForSpeed } from '../replay/replay';
 import type { ReplaySession } from '../replay/replay';
 import Board from '../components/Board';
 import GameControls from '../components/GameControls';
 import ReplayControls from '../components/ReplayControls';
 import MoveCounter from '../components/MoveCounter';
+import SolverPanel, { type ComparisonEntry } from '../components/SolverPanel';
 
 export default function Play() {
   const puzzle = CLASSIC_PUZZLE;
   const game = useGame(puzzle);
 
   const [mode, setMode] = useState<'play' | 'replay'>('play');
+  const [algorithm, setAlgorithm] = useState<AlgorithmName>('bfs');
   const [solving, setSolving] = useState(false);
+  const [comparing, setComparing] = useState(false);
+  const [progress, setProgress] = useState<SolveProgress | null>(null);
   const [solveResult, setSolveResult] = useState<SolveResult | null>(null);
+  const [comparison, setComparison] = useState<ComparisonEntry[] | null>(null);
+  const [stopped, setStopped] = useState(false);
+  const solveHandleRef = useRef<SolveHandle | null>(null);
+
   const [session, setSession] = useState<ReplaySession | null>(null);
   const [replayIndex, setReplayIndex] = useState(0);
   const [replayPlaying, setReplayPlaying] = useState(false);
   const [replaySpeed, setReplaySpeed] = useState(1);
 
-  // 游玩计时：第一次移动开始计时，完成后停止
   const [started, setStarted] = useState(false);
   const startedAtRef = useRef<number>(0);
   const [elapsedMs, setElapsedMs] = useState(0);
-
-  // 胜利后自动计算最优解（从初始状态求解，与玩家是否主动 Solve 无关）
   const [optimal, setOptimal] = useState<number | null>(null);
 
   // 回放自动播放定时器（组件卸载时清理）
@@ -49,7 +56,7 @@ export default function Play() {
     return () => clearInterval(timer);
   }, [replayPlaying, replaySpeed, session]);
 
-  // 游玩计时器（开始时启动，胜利或重置时停止）
+  // 游玩计时器
   useEffect(() => {
     if (!started || game.solved) return;
     const timer = setInterval(() => {
@@ -58,12 +65,19 @@ export default function Play() {
     return () => clearInterval(timer);
   }, [started, game.solved]);
 
+  // 页面离开时终止未完成的求解，避免 Worker 泄漏
+  useEffect(() => {
+    return () => solveHandleRef.current?.cancel();
+  }, []);
+
   const handleReset = useCallback(() => {
     game.reset();
     setStarted(false);
     setElapsedMs(0);
     setOptimal(null);
     setSolveResult(null);
+    setComparison(null);
+    setStopped(false);
   }, [game]);
 
   const handleMove = useCallback(
@@ -73,23 +87,60 @@ export default function Play() {
         startedAtRef.current = Date.now();
       }
       const ok = game.doMove(move);
-      if (ok) setSolveResult(null);
+      if (ok) {
+        setSolveResult(null);
+        setComparison(null);
+      }
       return ok;
     },
     [game, started],
   );
 
-  const handleSolve = useCallback(async () => {
+  const handleSolve = useCallback(() => {
     setSolving(true);
-    const result = await solvePuzzle({ puzzle, initialState: game.state }, 'bfs');
+    setStopped(false);
+    setProgress(null);
+    setSolveResult(null);
+    setComparison(null);
+    const stateAtSolve = game.state;
+    const handle = solvePuzzleWithHandle(
+      { puzzle, initialState: stateAtSolve },
+      algorithm,
+      { onProgress: setProgress },
+    );
+    solveHandleRef.current = handle;
+    handle.promise.then((result) => {
+      solveHandleRef.current = null;
+      setSolving(false);
+      setSolveResult(result);
+      if (result.solved) {
+        setSession(buildReplaySession(puzzle, stateAtSolve, result.moves));
+        setReplayIndex(0);
+        setReplayPlaying(false);
+        setMode('replay');
+      }
+    });
+  }, [puzzle, game.state, algorithm]);
+
+  const handleStop = useCallback(() => {
+    solveHandleRef.current?.cancel();
+    solveHandleRef.current = null;
     setSolving(false);
-    setSolveResult(result);
-    if (result.solved) {
-      setSession(buildReplaySession(puzzle, game.state, result.moves));
-      setReplayIndex(0);
-      setReplayPlaying(false);
-      setMode('replay');
+    setStopped(true);
+  }, []);
+
+  const handleCompare = useCallback(async () => {
+    setComparing(true);
+    setComparison(null);
+    setSolveResult(null);
+    const entries: ComparisonEntry[] = [];
+    // 顺序执行，保证耗时对比公平
+    for (const name of ALL_ALGORITHMS) {
+      const result = await solvePuzzle({ puzzle, initialState: game.state }, name);
+      entries.push({ algorithm: name, result });
+      setComparison([...entries]);
     }
+    setComparing(false);
   }, [puzzle, game.state]);
 
   // 胜利结算：从初始状态求最优解
@@ -126,7 +177,7 @@ export default function Play() {
         <Board
           puzzle={puzzle}
           state={boardState}
-          interactive={mode === 'play' && !game.solved}
+          interactive={mode === 'play' && !game.solved && !solving}
           onMove={handleMove}
         />
       </section>
@@ -136,15 +187,31 @@ export default function Play() {
         <MoveCounter moves={game.moveCount} optimal={solveResult?.depth ?? null} />
 
         {mode === 'play' ? (
-          <GameControls
-            canUndo={game.canUndo}
-            canRedo={game.canRedo}
-            solving={solving}
-            onUndo={game.undo}
-            onRedo={game.redo}
-            onReset={handleReset}
-            onSolve={handleSolve}
-          />
+          <>
+            <GameControls
+              canUndo={game.canUndo}
+              canRedo={game.canRedo}
+              onUndo={game.undo}
+              onRedo={game.redo}
+              onReset={handleReset}
+            />
+            <SolverPanel
+              algorithm={algorithm}
+              solving={solving}
+              comparing={comparing}
+              progress={progress}
+              result={solveResult}
+              comparison={comparison}
+              onAlgorithmChange={setAlgorithm}
+              onSolve={handleSolve}
+              onStop={handleStop}
+              onCompare={handleCompare}
+            />
+            {stopped && <p className="play__unsolvable">已停止求解。</p>}
+            {solveResult && !solveResult.solved && (
+              <p className="play__unsolvable">当前局面无解或达到搜索上限。</p>
+            )}
+          </>
         ) : (
           session && (
             <ReplayControls
@@ -167,34 +234,6 @@ export default function Play() {
               onExit={exitReplay}
             />
           )
-        )}
-
-        {solveResult && mode === 'replay' && (
-          <div className="solver-stats" aria-label="求解统计">
-            <h3>求解统计</h3>
-            <dl>
-              <div>
-                <dt>最优步数</dt>
-                <dd>{solveResult.depth}</dd>
-              </div>
-              <div>
-                <dt>访问节点</dt>
-                <dd>{solveResult.visitedNodes}</dd>
-              </div>
-              <div>
-                <dt>展开节点</dt>
-                <dd>{solveResult.expandedNodes}</dd>
-              </div>
-              <div>
-                <dt>耗时</dt>
-                <dd>{solveResult.elapsedMs} 毫秒</dd>
-              </div>
-            </dl>
-          </div>
-        )}
-
-        {solveResult && !solveResult.solved && (
-          <p className="play__unsolvable">当前局面无解或达到搜索上限。</p>
         )}
       </aside>
 

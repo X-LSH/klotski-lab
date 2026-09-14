@@ -60,13 +60,43 @@ export function canMove(state: GameState, puzzle: PuzzleDefinition, move: Move):
 /**
  * 枚举当前状态下的全部合法单位移动（每个棋子 × 四个方向 × 1 格）。
  * 多格位移可由连续的单位移动组合得到，保证搜索时步数统计一致。
+ *
+ * 性能说明：占用格集合只构建一次（cell -> pieceId），
+ * 而不是像 canMove 那样每次调用都重建，求解器热路径依赖这一点。
  */
 export function getLegalMoves(state: GameState, puzzle: PuzzleDefinition): Move[] {
+  // cell key -> 占据它的棋子 id
+  const occupancy = new Map<string, string>();
+  for (const p of state.pieces) {
+    for (let dy = 0; dy < p.height; dy++) {
+      for (let dx = 0; dx < p.width; dx++) {
+        occupancy.set(`${p.x + dx},${p.y + dy}`, p.id);
+      }
+    }
+  }
+
   const moves: Move[] = [];
   for (const piece of state.pieces) {
     for (const direction of ALL_DIRECTIONS) {
-      const move: Move = { pieceId: piece.id, direction, steps: 1 };
-      if (canMove(state, puzzle, move)) moves.push(move);
+      const { dx, dy } = DIRECTION_DELTAS[direction];
+      const x = piece.x + dx;
+      const y = piece.y + dy;
+      const next = { x, y, width: piece.width, height: piece.height };
+      if (!rectInBounds(puzzle.board, next)) continue;
+      let legal = true;
+      for (let gy = 0; gy < piece.height && legal; gy++) {
+        for (let gx = 0; gx < piece.width && legal; gx++) {
+          const cx = x + gx;
+          const cy = y + gy;
+          if (isBlocked(puzzle.board, cx, cy)) {
+            legal = false;
+            break;
+          }
+          const occupant = occupancy.get(`${cx},${cy}`);
+          if (occupant !== undefined && occupant !== piece.id) legal = false;
+        }
+      }
+      if (legal) moves.push({ pieceId: piece.id, direction, steps: 1 });
     }
   }
   return moves;
@@ -80,6 +110,14 @@ export function applyMove(state: GameState, puzzle: PuzzleDefinition, move: Move
   if (!canMove(state, puzzle, move)) {
     throw new Error(`非法移动：棋子 ${move.pieceId} 无法向 ${move.direction} 移动 ${move.steps} 格`);
   }
+  return applyLegalMove(state, move);
+}
+
+/**
+ * 不校验合法性直接应用移动（求解器热路径专用）。
+ * 调用方必须保证移动来自 getLegalMoves 或已通过 canMove 校验。
+ */
+export function applyLegalMove(state: GameState, move: Move): GameState {
   const next = cloneState(state);
   const piece = findPiece(next, move.pieceId) as Piece;
   const { dx, dy } = DIRECTION_DELTAS[move.direction];

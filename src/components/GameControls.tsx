@@ -1,24 +1,20 @@
 /**
- * 游戏操作栏：撤销 / 重做 / 重置 / 求解。
+ * 游戏操作栏：撤销 / 重做 / 重置（求解操作在 SolverPanel 中）。
  */
 interface GameControlsProps {
   canUndo: boolean;
   canRedo: boolean;
-  solving: boolean;
   onUndo: () => void;
   onRedo: () => void;
   onReset: () => void;
-  onSolve: () => void;
 }
 
 export default function GameControls({
   canUndo,
   canRedo,
-  solving,
   onUndo,
   onRedo,
   onReset,
-  onSolve,
 }: GameControlsProps) {
   return (
     <div className="game-controls" role="toolbar" aria-label="游戏操作">
@@ -30,15 +26,6 @@ export default function GameControls({
       </button>
       <button type="button" onClick={onReset} aria-label="重置">
         重置
-      </button>
-      <button
-        type="button"
-        className="game-controls__solve"
-        onClick={onSolve}
-        disabled={solving}
-        aria-label="求解"
-      >
-        {solving ? '求解中…' : '求解'}
       </button>
     </div>
   );

@@ -318,6 +318,88 @@ a:focus-visible {
   font-variant-numeric: tabular-nums;
 }
 
+/* ===== 求解面板 ===== */
+.solver-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--bg-panel);
+  border: 1px solid var(--bg-panel-border);
+}
+
+.solver-panel__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.solver-panel__field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--fg-dim);
+  font-size: 14px;
+}
+
+.solver-panel__field select {
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--bg-panel-border);
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+
+.solver-panel__progress {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--fg-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.solver-panel__stats {
+  margin: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.solver-panel__stats > div {
+  display: flex;
+  justify-content: space-between;
+}
+
+.solver-panel__stats dt {
+  color: var(--fg-dim);
+}
+
+.solver-panel__stats dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.solver-panel__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.solver-panel__table th,
+.solver-panel__table td {
+  padding: 6px 8px;
+  text-align: left;
+  border-bottom: 1px solid var(--bg-panel-border);
+}
+
+.solver-panel__table th {
+  color: var(--fg-dim);
+  font-weight: 500;
+}
+
 /* ===== 胜利结算 ===== */
 .victory {
   position: fixed;

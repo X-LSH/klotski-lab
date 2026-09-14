@@ -83,6 +83,8 @@ export function createSolverClient(workerFactory?: WorkerFactory): SolverClient 
           if (message.id !== id) return;
           if (message.type === 'progress') {
             options.onProgress?.(message.progress);
+          } else if (message.type === 'event') {
+            options.onEvent?.(message.event);
           } else if (message.type === 'result') {
             settled = true;
             worker.terminate();
@@ -100,7 +102,12 @@ export function createSolverClient(workerFactory?: WorkerFactory): SolverClient 
           id,
           algorithm,
           problem,
-          options: { maxStates: options.maxStates, timeoutMs: options.timeoutMs },
+          options: {
+            maxStates: options.maxStates,
+            timeoutMs: options.timeoutMs,
+            visualize: options.onEvent !== undefined,
+            maxTreeEvents: options.maxTreeEvents,
+          },
         });
       });
 

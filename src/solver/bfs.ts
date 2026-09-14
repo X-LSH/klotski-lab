@@ -3,9 +3,10 @@
  *
  * 设计要点：
  * - 不保存整条路径到每个节点，只用 parent map（stateKey -> 父状态 + 移动）回溯解法；
- * - 状态去重使用 core 的确定性 stateKey；
+ * - 状态去重使用规范化状态键（等价棋子归一）；
  * - 状态保持不可变语义，绝不修改传入的 GameState；
- * - 终止条件：已解 / 找到解 / 无解 / 状态数上限 / 超时 / 外部取消。
+ * - 终止条件：已解 / 找到解 / 无解 / 状态数上限 / 超时 / 外部取消；
+ * - 观测：通过 onEvent 发出轻量搜索事件，不影响求解正确性。
  */
 import type { GameState, Move } from '../types';
 import { isSolved } from '../core/rules';
@@ -45,10 +46,12 @@ export function solveBfs(problem: SolveProblem, options: SolveOptions = {}): Sol
   const { puzzle, initialState } = problem;
   const maxStates = options.maxStates ?? DEFAULT_MAX_STATES;
   const startedAt = Date.now();
+  const emit = options.onEvent;
 
-  const finish = (
-    partial: Omit<SolveResult, 'elapsedMs'>,
-  ): SolveResult => ({ ...partial, elapsedMs: Date.now() - startedAt });
+  const finish = (partial: Omit<SolveResult, 'elapsedMs'>): SolveResult => {
+    emit?.({ type: 'search_end', reason: partial.reason });
+    return { ...partial, elapsedMs: Date.now() - startedAt };
+  };
 
   // 终止条件 1：初始状态已经 solved
   if (isSolved(initialState, puzzle)) {
@@ -63,6 +66,7 @@ export function solveBfs(problem: SolveProblem, options: SolveOptions = {}): Sol
   }
 
   const startKey = canonicalStateKey(initialState, puzzle);
+  emit?.({ type: 'search_start', stateKey: startKey, depth: 0 });
   // 队列只存 stateKey，状态本体放在 states map 中，避免重复持有大对象
   const queue: string[] = [startKey];
   let queueHead = 0;
@@ -71,7 +75,20 @@ export function solveBfs(problem: SolveProblem, options: SolveOptions = {}): Sol
   const parents = new Map<string, ParentRecord>();
 
   let expandedNodes = 0;
+  let generatedNodes = 0;
+  let skippedNodes = 0;
   let lastProgressAt = 0;
+
+  const reportProgress = (depth: number) => {
+    options.onProgress?.({
+      visitedNodes: states.size,
+      expandedNodes,
+      depth,
+      queueSize: queue.length - queueHead,
+      generatedNodes,
+      skippedNodes,
+    });
+  };
 
   while (queueHead < queue.length) {
     // 终止条件 4 / 5 / 取消：周期性检查，避免死循环卡住
@@ -102,35 +119,39 @@ export function solveBfs(problem: SolveProblem, options: SolveOptions = {}): Sol
     const current = states.get(currentKey) as GameState;
     const currentDepth = depths.get(currentKey) as number;
     expandedNodes += 1;
+    emit?.({ type: 'node_expand', stateKey: currentKey, depth: currentDepth });
 
     if (options.onProgress && expandedNodes - lastProgressAt >= PROGRESS_INTERVAL) {
       lastProgressAt = expandedNodes;
-      options.onProgress({
-        visitedNodes: states.size,
-        expandedNodes,
-        depth: currentDepth,
-        queueSize: queue.length - queueHead,
-      });
+      reportProgress(currentDepth);
     }
 
     // 每层扩展：生成全部合法后继
     for (const { move, state: next } of generateSuccessors(current, puzzle)) {
       const nextKey = canonicalStateKey(next, puzzle);
-      if (states.has(nextKey)) continue; // 状态去重
+      generatedNodes += 1;
+      if (states.has(nextKey)) {
+        skippedNodes += 1;
+        emit?.({ type: 'node_skip', stateKey: nextKey, depth: currentDepth + 1 });
+        continue;
+      }
       states.set(nextKey, next);
       depths.set(nextKey, currentDepth + 1);
       parents.set(nextKey, { parentKey: currentKey, move });
       queue.push(nextKey);
+      emit?.({
+        type: 'node_generate',
+        stateKey: nextKey,
+        parentKey: currentKey,
+        move,
+        depth: currentDepth + 1,
+      });
 
       // 终止条件 2：找到目标后停止，BFS 保证此时为最短解
       if (isSolved(next, puzzle)) {
         const moves = reconstructMoves(parents, nextKey);
-        options.onProgress?.({
-          visitedNodes: states.size,
-          expandedNodes,
-          depth: currentDepth + 1,
-          queueSize: queue.length - queueHead,
-        });
+        emit?.({ type: 'goal_found', stateKey: nextKey, depth: moves.length });
+        reportProgress(moves.length);
         return finish({
           solved: true,
           moves,

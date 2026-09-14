@@ -41,6 +41,10 @@ export interface SolveProgress {
   expandedNodes: number;
   depth: number;
   queueSize: number;
+  /** 累计生成的后继节点数（含重复） */
+  generatedNodes: number;
+  /** 累计被去重 / 剪枝跳过的节点数 */
+  skippedNodes: number;
 }
 
 /** 求解可选配置 */
@@ -53,6 +57,10 @@ export interface SolveOptions {
   onProgress?: (progress: SolveProgress) => void;
   /** 取消检查：返回 true 时求解器尽快终止 */
   shouldCancel?: () => boolean;
+  /** 搜索事件回调（观测层；轻量事件，量大时由调用方节流） */
+  onEvent?: (event: import('./events').SearchEvent) => void;
+  /** 可视化树事件转发上限（Worker 模式，默认 2000） */
+  maxTreeEvents?: number;
 }
 
 export const DEFAULT_MAX_STATES = 200_000;

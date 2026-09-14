@@ -620,3 +620,282 @@ a:focus-visible {
     flex-wrap: nowrap;
   }
 }
+
+/* ===== 观测台 ===== */
+.observatory {
+  padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.observatory__title {
+  margin: 0;
+}
+
+.observatory__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.algorithm-selector {
+  display: flex;
+  gap: 8px;
+}
+
+.algorithm-selector__item--active {
+  border-color: var(--accent);
+  background: rgba(74, 143, 224, 0.2);
+}
+
+.observatory__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.observatory__race {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.search-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px;
+}
+
+.search-stats__item {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--bg-panel);
+  border: 1px solid var(--bg-panel-border);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.search-stats__label {
+  font-size: 12px;
+  color: var(--fg-dim);
+}
+
+.search-stats__value {
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+}
+
+.observatory__result {
+  margin: 0;
+  color: var(--fg-dim);
+}
+
+.observatory__grid {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.search-tree {
+  flex: 1 1 640px;
+  min-width: 0;
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--bg-panel);
+  border: 1px solid var(--bg-panel-border);
+}
+
+.search-tree__viewport {
+  overflow: auto;
+  max-height: 420px;
+}
+
+.search-tree__empty,
+.search-tree__note,
+.search-timeline__empty,
+.node-inspector__empty,
+.algorithm-comparison__empty {
+  color: var(--fg-dim);
+  font-size: 14px;
+}
+
+.search-tree__edge {
+  stroke: rgba(255, 255, 255, 0.15);
+  stroke-width: 1;
+}
+
+.search-tree__edge--path {
+  stroke: var(--accent);
+  stroke-width: 1.6;
+}
+
+.search-tree__node {
+  fill: #33517e;
+  stroke: rgba(255, 255, 255, 0.3);
+  stroke-width: 1;
+}
+
+.search-tree__node--path {
+  fill: var(--accent);
+}
+
+.search-tree__node--goal {
+  fill: var(--goal);
+  stroke: var(--goal);
+}
+
+.search-tree__node--selected {
+  stroke: #fff;
+  stroke-width: 2;
+}
+
+.search-tree__tag {
+  fill: var(--fg-dim);
+  font-size: 9px;
+}
+
+.observatory__side {
+  flex: 0 0 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.node-inspector,
+.search-timeline,
+.algorithm-comparison {
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--bg-panel);
+  border: 1px solid var(--bg-panel-border);
+}
+
+.node-inspector h3,
+.search-timeline h3,
+.algorithm-comparison h3 {
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+
+.node-inspector dl {
+  margin: 0;
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.node-inspector dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.node-inspector dt {
+  color: var(--fg-dim);
+  flex-shrink: 0;
+}
+
+.node-inspector dd {
+  margin: 0;
+  text-align: right;
+  word-break: break-all;
+}
+
+.node-inspector__key {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 11px;
+}
+
+.search-timeline svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.search-timeline__line {
+  fill: none;
+  stroke-width: 1.6;
+}
+
+.search-timeline__line--visited {
+  stroke: var(--accent);
+}
+
+.search-timeline__line--expanded {
+  stroke: var(--goal);
+}
+
+.search-timeline__legend {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  font-size: 12px;
+  color: var(--fg-dim);
+}
+
+.search-timeline__dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 4px;
+}
+
+.search-timeline__dot--visited {
+  background: var(--accent);
+}
+
+.search-timeline__dot--expanded {
+  background: var(--goal);
+}
+
+.algorithm-comparison__charts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  margin-top: 12px;
+}
+
+.algorithm-bars h4 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: var(--fg-dim);
+}
+
+.algorithm-bars__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.algorithm-bars__label {
+  width: 110px;
+  flex-shrink: 0;
+}
+
+.algorithm-bars__bar {
+  fill: var(--accent);
+}
+
+.algorithm-bars__value {
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-dim);
+}
+
+@media (max-width: 768px) {
+  .observatory__grid {
+    flex-direction: column;
+  }
+
+  .observatory__side {
+    flex: 1 1 auto;
+    width: 100%;
+  }
+}

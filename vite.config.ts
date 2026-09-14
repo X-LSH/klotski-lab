@@ -13,6 +13,7 @@ export default defineConfig(({ mode }) => ({
   },
   test: {
     environment: 'node',
+    globals: true,
     include: ['tests/**/*.test.{ts,tsx}'],
     testTimeout: 30000,
   },

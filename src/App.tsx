@@ -1,6 +1,24 @@
+import { HashRouter, NavLink, Route, Routes } from 'react-router-dom';
 import Home from './pages/Home';
+import Play from './pages/Play';
 
-// 阶段 0：仅提供最基本的页面框架，路由与业务页面在后续阶段接入。
+// 使用 HashRouter：GitHub Pages 纯静态托管无需配置服务端回退路由。
 export default function App() {
-  return <Home />;
+  return (
+    <HashRouter>
+      <header className="app-header">
+        <NavLink to="/" className="app-header__brand">
+          Klotski Lab
+        </NavLink>
+        <nav className="app-header__nav" aria-label="主导航">
+          <NavLink to="/">首页</NavLink>
+          <NavLink to="/play">游戏</NavLink>
+        </nav>
+      </header>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/play" element={<Play />} />
+      </Routes>
+    </HashRouter>
+  );
 }

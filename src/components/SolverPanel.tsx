@@ -3,6 +3,7 @@
  */
 import { ALGORITHM_LABELS, ALL_ALGORITHMS, type AlgorithmName } from '../solver/registry';
 import type { SolveProgress, SolveResult } from '../solver/result';
+import { END_REASON_LABELS } from './observatory/labels';
 
 export interface ComparisonEntry {
   algorithm: AlgorithmName;
@@ -77,6 +78,14 @@ export default function SolverPanel({
         </button>
       </div>
 
+      {/* 前置告知：不要在用户等了几十秒之后才说「超时」 */}
+      {algorithm === 'idastar' && !solving && (
+        <p className="solver-panel__notice" role="note">
+          IDA* 依赖启发式剪枝，在经典等大型谜题上可能长时间无结果（算法特性，非故障）。
+          若需要立即得到最优解，建议改用 BFS 或 A*；求解设有 30 秒超时，到点会明确提示。
+        </p>
+      )}
+
       {solving && progress && (
         <div className="solver-panel__progress" aria-label="求解进度">
           <span>访问 {progress.visitedNodes}</span>
@@ -108,28 +117,37 @@ export default function SolverPanel({
       )}
 
       {comparison && (
-        <table className="solver-panel__table" aria-label="算法对比">
-          <thead>
-            <tr>
-              <th>算法</th>
-              <th>深度</th>
-              <th>访问</th>
-              <th>展开</th>
-              <th>耗时</th>
-            </tr>
-          </thead>
-          <tbody>
-            {comparison.map(({ algorithm: name, result: r }) => (
-              <tr key={name}>
-                <td>{ALGORITHM_LABELS[name]}</td>
-                <td>{r.solved ? r.depth : '—'}</td>
-                <td>{r.visitedNodes}</td>
-                <td>{r.expandedNodes}</td>
-                <td>{r.elapsedMs} 毫秒</td>
+        <>
+          <table className="solver-panel__table" aria-label="算法对比">
+            <thead>
+              <tr>
+                <th>算法</th>
+                <th>状态</th>
+                <th>深度</th>
+                <th>访问</th>
+                <th>展开</th>
+                <th>耗时</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {comparison.map(({ algorithm: name, result: r }) => (
+                <tr key={name} className={r.solved ? '' : 'solver-panel__row--unresolved'}>
+                  <td>{ALGORITHM_LABELS[name]}</td>
+                  <td>{END_REASON_LABELS[r.reason]}</td>
+                  <td>{r.solved ? r.depth : '—'}</td>
+                  <td>{r.visitedNodes}</td>
+                  <td>{r.expandedNodes}</td>
+                  <td>{r.elapsedMs} 毫秒</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {comparison.some((entry) => !entry.result.solved) && (
+            <p className="solver-panel__notice" role="note">
+              表中未解出的算法已如实标注结束原因；超时或达到上限不代表谜题无解。
+            </p>
+          )}
+        </>
       )}
     </div>
   );

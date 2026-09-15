@@ -29,6 +29,7 @@ import {
 } from '../storage/local-storage';
 import type { SavedProgress } from '../storage/local-storage';
 import { buildShareUrl, copyToClipboard, readPuzzleFromLocation } from '../storage/share';
+import { unresolvedHint } from '../components/observatory/labels';
 
 export default function Play() {
   // 谜题来源优先级：URL 分享码 > 关卡页注入 > 经典谜题
@@ -68,6 +69,8 @@ export default function Play() {
   const startedAtRef = useRef<number>(0);
   const [elapsedMs, setElapsedMs] = useState(0);
   const [optimal, setOptimal] = useState<number | null>(null);
+  /** 最优解无法给出（BFS 未解出 / 超时）时置位，避免界面永远停在「计算中…」 */
+  const [optimalFailed, setOptimalFailed] = useState(false);
 
   // 回放自动播放定时器（组件卸载时清理）
   useEffect(() => {
@@ -124,6 +127,7 @@ export default function Play() {
     setStarted(false);
     setElapsedMs(0);
     setOptimal(null);
+    setOptimalFailed(false);
     setSolveResult(null);
     setComparison(null);
     setStopped(false);
@@ -137,6 +141,7 @@ export default function Play() {
     setStarted(false);
     setElapsedMs(0);
     setOptimal(null);
+    setOptimalFailed(false);
     setSolveResult(null);
     setComparison(null);
     setStopped(false);
@@ -210,7 +215,9 @@ export default function Play() {
     if (!game.solved || optimal !== null) return;
     let cancelled = false;
     solvePuzzle({ puzzle, initialState: createInitialState(puzzle) }, 'bfs').then((result) => {
-      if (!cancelled && result.solved) setOptimal(result.depth);
+      if (cancelled) return;
+      if (result.solved) setOptimal(result.depth);
+      else setOptimalFailed(true);
     });
     recordCompletion({
       levelId: puzzle.name,
@@ -294,8 +301,11 @@ export default function Play() {
               onCompare={handleCompare}
             />
             {stopped && <p className="play__unsolvable">已停止求解。</p>}
+            {/* 未解出：必须按结束原因如实区分 —— 超时 ≠ 无解 */}
             {solveResult && !solveResult.solved && (
-              <p className="play__unsolvable">当前局面无解或达到搜索上限。</p>
+              <p className="play__unsolvable" role="status">
+                {unresolvedHint(solveResult.reason)}
+              </p>
             )}
             <div className="play__share">
               <button type="button" onClick={handleShare} aria-label="复制分享链接">
@@ -346,7 +356,7 @@ export default function Play() {
             </div>
             <div>
               <dt>最优</dt>
-              <dd>{optimal ?? '计算中…'}</dd>
+              <dd>{optimal ?? (optimalFailed ? '未知' : '计算中…')}</dd>
             </div>
             <div>
               <dt>效率</dt>

@@ -67,16 +67,24 @@ a:focus-visible {
   font-size: 18px;
   color: var(--fg);
   text-decoration: none;
+  /* 窄屏下不被压缩成多行 */
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .app-header__nav {
   display: flex;
   gap: 16px;
+  /* 空间不足时整体换行，而不是把每个链接挤成竖排单字 */
+  flex-wrap: wrap;
+  row-gap: 8px;
+  min-width: 0;
 }
 
 .app-header__nav a {
   color: var(--fg-dim);
   text-decoration: none;
+  white-space: nowrap;
 }
 
 .app-header__nav a.active {
@@ -427,7 +435,16 @@ a:focus-visible {
 @media (max-width: 768px) {
   .play {
     flex-direction: column;
+    /* 关键：列方向下若沿用 flex-start，子项会按内容宽度收缩；
+       而 .board 的子元素全部是绝对定位，固有宽度为 0，会被压成 2px 宽（棋盘在手机上完全消失）。 */
+    align-items: stretch;
     padding: 16px;
+  }
+
+  .play__board-area {
+    /* 列方向下 flex-basis 作用于高度，必须复位；宽度交回 flex 容器拉伸 */
+    flex: 0 0 auto;
+    width: 100%;
   }
 
   .play__side {

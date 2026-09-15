@@ -12,11 +12,9 @@
 
 ## 在线演示
 
-推送到 GitHub 后由 Actions 自动部署：
+https://x-lsh.github.io/klotski-lab/
 
-```
-https://<你的用户名>.github.io/klotski-lab/
-```
+推送到 `main` 后由 GitHub Actions 自动构建并发布。
 
 ## 功能列表
 

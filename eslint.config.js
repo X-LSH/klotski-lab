@@ -5,7 +5,8 @@ import reactRefresh from 'eslint-plugin-react-refresh';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['dist', 'coverage', 'node_modules', 'public/sw.js'] },
+  // .tmp 存放一次性验证脚本（已 gitignore），不参与 lint
+  { ignores: ['dist', 'coverage', 'node_modules', 'public/sw.js', '.tmp/**'] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ['**/*.{ts,tsx}'],

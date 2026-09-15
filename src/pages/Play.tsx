@@ -3,11 +3,12 @@
  * React 只管理状态与展示，所有移动合法性都经由 core 判断。
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import type { Move, PuzzleDefinition } from '../types';
 import { CLASSIC_PUZZLE } from '../core/presets';
 import { createInitialState } from '../core/state';
 import { validatePuzzle } from '../core/validator';
+import { isSolved } from '../core/rules';
 import { useGame } from '../hooks/useGame';
 import { solvePuzzle, solvePuzzleWithHandle } from '../solver/solver-service';
 import type { SolveHandle } from '../solver/solver-client';
@@ -30,17 +31,33 @@ import {
 import type { SavedProgress } from '../storage/local-storage';
 import { buildShareUrl, copyToClipboard, readPuzzleFromLocation } from '../storage/share';
 import { unresolvedHint } from '../components/observatory/labels';
+import PuzzleSwitcher from '../components/PuzzleSwitcher';
 
 export default function Play() {
-  // 谜题来源优先级：URL 分享码 > 关卡页注入 > 经典谜题
+  // 谜题来源优先级：用户主动切换 > URL 分享码 > 关卡页注入 > 经典谜题
   const location = useLocation();
+  const navigate = useNavigate();
   const [sharedPuzzle] = useState(() => readPuzzleFromLocation(window.location.hash));
   const incoming = (location.state as { puzzle?: PuzzleDefinition } | null)?.puzzle;
+  // 用户在切换器里主动选择时优先级最高（否则分享码会一直压住切换操作）
+  const [override, setOverride] = useState<PuzzleDefinition | null>(null);
   const puzzle = useMemo(() => {
+    if (override) return override;
     if (sharedPuzzle) return sharedPuzzle;
     if (incoming && validatePuzzle(incoming).valid) return incoming;
     return CLASSIC_PUZZLE;
-  }, [sharedPuzzle, incoming]);
+  }, [override, sharedPuzzle, incoming]);
+  // 谜题切换器：选择后覆盖当前谜题；「谜题变化即重置整局」的既有逻辑会随之生效
+  const handleSwitchPuzzle = useCallback(
+    (next: PuzzleDefinition) => {
+      setOverride(next);
+      // 同步到 location.state，刷新后仍能回到同一谜题
+      navigate('/play', { state: { puzzle: next }, replace: true });
+    },
+    [navigate],
+  );
+  // 退化谜题兜底：初始布局已完成目标时不弹胜利结算（否则会「打开即已解开」且重置无效）
+  const initiallySolved = useMemo(() => isSolved(createInitialState(puzzle), puzzle), [puzzle]);
   // 重新打开可以继续：读取与本谜题匹配的进度存档
   const [restored] = useState<SavedProgress | null>(() => {
     const saved = loadProgress();
@@ -276,6 +293,7 @@ export default function Play() {
       </section>
 
       <aside className="play__side">
+        <PuzzleSwitcher currentName={puzzle.name} onSelect={handleSwitchPuzzle} />
         <h2 className="play__puzzle-name">{puzzle.name}</h2>
         <MoveCounter moves={game.moveCount} optimal={solveResult?.depth ?? null} />
 
@@ -301,6 +319,11 @@ export default function Play() {
               onCompare={handleCompare}
             />
             {stopped && <p className="play__unsolvable">已停止求解。</p>}
+            {initiallySolved && (
+              <p className="play__unsolvable" role="status">
+                该谜题的初始布局已完成目标。请从上方切换其他谜题，或在编辑器中调整布局。
+              </p>
+            )}
             {/* 未解出：必须按结束原因如实区分 —— 超时 ≠ 无解 */}
             {solveResult && !solveResult.solved && (
               <p className="play__unsolvable" role="status">
@@ -346,7 +369,8 @@ export default function Play() {
         )}
       </aside>
 
-      {game.solved && mode === 'play' && (
+      {/* 初始即已解的退化谜题不弹结算：否则会「打开即已解开」且重置无法脱离 */}
+      {game.solved && mode === 'play' && !initiallySolved && (
         <div className="victory" role="dialog" aria-label="完成结算">
           <h2>已解开</h2>
           <dl className="victory__stats">

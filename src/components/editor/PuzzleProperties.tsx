@@ -1,7 +1,8 @@
 /**
- * 谜题属性面板：名称、棋盘尺寸、目标棋子、目标类型、出口 / 目标区域。
+ * 谜题属性面板：名称、棋盘尺寸、目标棋子、目标类型、出口 / 目标区域，
+ * 以及选中棋子的自定义名称。
  */
-import type { PuzzleDefinition } from '../../types';
+import type { Piece, PuzzleDefinition } from '../../types';
 
 interface PuzzlePropertiesProps {
   puzzle: PuzzleDefinition;
@@ -21,6 +22,11 @@ export default function PuzzleProperties({
     onChange({ ...puzzle, board: { ...puzzle.board, ...patch } });
   const updateGoal = (patch: Partial<PuzzleDefinition['goal']>) =>
     onChange({ ...puzzle, goal: { ...puzzle.goal, ...patch } });
+  const updatePiece = (id: string, patch: Partial<Piece>) =>
+    onChange({
+      ...puzzle,
+      pieces: puzzle.pieces.map((p) => (p.id === id ? { ...p, ...patch } : p)),
+    });
 
   const numberInput = (
     label: string,
@@ -43,6 +49,7 @@ export default function PuzzleProperties({
 
   const exit = puzzle.board.exit ?? { x: 0, y: 0, width: 2, height: 1 };
   const area = puzzle.goal.area ?? { x: 0, y: 0, width: 2, height: 2 };
+  const selected = puzzle.pieces.find((p) => p.id === selectedId) ?? null;
 
   return (
     <div className="puzzle-props" aria-label="谜题属性">
@@ -54,6 +61,27 @@ export default function PuzzleProperties({
           onChange={(e) => update({ name: e.target.value })}
         />
       </label>
+
+      {/* 选中棋子：名称完全自定义，不局限于华容道角色 */}
+      {selected && (
+        <div className="puzzle-props__group">
+          <h4>
+            选中棋子（{selected.width}×{selected.height}）
+          </h4>
+          <label className="puzzle-props__field">
+            <span>名称</span>
+            <input
+              type="text"
+              value={selected.label ?? ''}
+              placeholder={selected.id}
+              onChange={(e) => updatePiece(selected.id, { label: e.target.value })}
+            />
+          </label>
+          <p className="puzzle-props__hint">
+            留空时棋盘显示内部编号；名称可随意取，不限于华容道角色。
+          </p>
+        </div>
+      )}
 
       <div className="puzzle-props__group">
         <h4>棋盘</h4>

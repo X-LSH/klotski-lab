@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import type { PuzzleDefinition } from '../types';
 import { getDailyPuzzle } from '../generator/daily';
@@ -5,6 +6,12 @@ import { getDailyPuzzle } from '../generator/daily';
 // 首页：产品定位（游玩 / 求解 / 创建 / 分析）+ 三个快捷入口。
 export default function Home() {
   const navigate = useNavigate();
+  // 每日挑战的生成要遍历整个状态空间（约 0.7s），异步预生成避免点击时卡顿
+  const [daily, setDaily] = useState<PuzzleDefinition | null>(null);
+  useEffect(() => {
+    const timer = setTimeout(() => setDaily(getDailyPuzzle(new Date())), 0);
+    return () => clearTimeout(timer);
+  }, []);
 
   const playPuzzle = (puzzle: PuzzleDefinition) => {
     navigate('/play', { state: { puzzle } });
@@ -35,16 +42,17 @@ export default function Home() {
       </div>
 
       <div className="home__entries">
-        <Link to="/play" className="home__entry home__entry--primary" role="button" aria-label="开始">
-          开始（经典）
+        <Link to="/play" className="home__entry home__entry--primary" role="button" aria-label="开始游戏">
+          开始游戏
         </Link>
         <button
           type="button"
           className="home__entry"
-          onClick={() => playPuzzle(getDailyPuzzle(new Date()))}
+          onClick={() => daily && playPuzzle(daily)}
+          disabled={!daily}
           aria-label="每日挑战"
         >
-          每日挑战
+          {daily ? '每日挑战' : '每日挑战 · 生成中…'}
         </button>
         <Link to="/editor" className="home__entry" role="button" aria-label="自定义谜题">
           自定义谜题

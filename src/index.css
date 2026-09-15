@@ -732,6 +732,35 @@ a:focus-visible {
   padding: 4px 8px;
 }
 
+/* 说明性小字：与低饱和的提示文案保持一致的层级 */
+.puzzle-props__hint {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--fg-dim);
+}
+
+/* 谜题切换器：置于游戏页侧栏顶部，是进入游戏后的第一操作 */
+.puzzle-switcher {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.puzzle-switcher__label {
+  color: var(--fg-dim);
+}
+
+.puzzle-switcher select {
+  width: 100%;
+  padding: 8px 10px;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--bg-panel-border);
+  border-radius: 8px;
+}
+
 .puzzle-props__remove {
   border-color: var(--danger);
   color: var(--danger);

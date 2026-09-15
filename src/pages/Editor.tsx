@@ -51,6 +51,8 @@ export default function Editor() {
         width,
         height,
         type: inferPieceType(width, height),
+        // 默认给一个可读名（按尺寸），用户可在属性面板里随意改名
+        label: `${width}×${height}`,
       };
       changePuzzle({ ...puzzle, pieces: [...puzzle.pieces, piece] });
       setSelectedId(id);

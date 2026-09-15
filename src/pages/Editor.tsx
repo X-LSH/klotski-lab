@@ -13,6 +13,8 @@ import PiecePalette from '../components/editor/PiecePalette';
 import EditorToolbar from '../components/editor/EditorToolbar';
 import PuzzleProperties from '../components/editor/PuzzleProperties';
 import ValidationPanel from '../components/editor/ValidationPanel';
+import MyPuzzles from '../components/editor/MyPuzzles';
+import { buildShareUrl, copyToClipboard } from '../storage/share';
 
 /** 空谜题模板 */
 function emptyPuzzle(): PuzzleDefinition {
@@ -149,6 +151,14 @@ export default function Editor() {
             onChange={changePuzzle}
             onRemoveSelected={() => selectedId && handleRemovePiece(selectedId)}
           />
+          <MyPuzzles
+            puzzle={puzzle}
+            onLoad={(loaded) => {
+              changePuzzle(loaded);
+              setSelectedId(null);
+              setMessage('已加载我的谜题');
+            }}
+          />
         </aside>
       </div>
 
@@ -166,6 +176,21 @@ export default function Editor() {
             {dialog.mode === 'import' && (
               <button type="button" onClick={handleImport}>
                 确认导入
+              </button>
+            )}
+            {dialog.mode === 'export' && (
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    const ok = await copyToClipboard(buildShareUrl(puzzle));
+                    setMessage(ok ? '分享链接已复制到剪贴板' : '复制失败，请手动复制 JSON');
+                  } catch {
+                    setMessage('该谜题暂无法生成分享链接');
+                  }
+                }}
+              >
+                复制分享链接
               </button>
             )}
             <button type="button" onClick={() => setDialog(null)}>

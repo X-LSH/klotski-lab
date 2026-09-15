@@ -11,6 +11,7 @@ import type { GameState, Move, PuzzleDefinition } from '../types';
 import { applyMove, canMove, isSolved } from '../core/rules';
 import { oppositeDirection } from '../core/move';
 import { createInitialState } from '../core/state';
+import type { SavedProgress } from '../storage/local-storage';
 
 interface GameStore {
   state: GameState;
@@ -24,7 +25,16 @@ type GameAction =
   | { type: 'redo' }
   | { type: 'reset' };
 
-function createStore(puzzle: PuzzleDefinition): GameStore {
+function createStore(puzzle: PuzzleDefinition, restore?: SavedProgress | null): GameStore {
+  if (restore && restore.history) {
+    // 从存档恢复：以初始状态为底，套用保存的坐标与历史
+    const state = createInitialState(puzzle);
+    state.pieces = state.pieces.map((piece) => {
+      const saved = restore.positions[piece.id];
+      return saved ? { ...piece, x: saved.x, y: saved.y } : piece;
+    });
+    return { state, undoStack: restore.history, redoStack: [] };
+  }
   return { state: createInitialState(puzzle), undoStack: [], redoStack: [] };
 }
 
@@ -74,6 +84,8 @@ export interface UseGameResult {
   canUndo: boolean;
   canRedo: boolean;
   solved: boolean;
+  /** 已执行的全部移动（按顺序），用于进度存档 */
+  history: Move[];
   /** 执行一次移动；基于当前状态预判，reducer 会基于最新状态再次校验 */
   doMove: (move: Move) => boolean;
   undo: () => void;
@@ -81,11 +93,11 @@ export interface UseGameResult {
   reset: () => void;
 }
 
-export function useGame(puzzle: PuzzleDefinition): UseGameResult {
+export function useGame(puzzle: PuzzleDefinition, restore?: SavedProgress | null): UseGameResult {
   const [store, dispatch] = useReducer(
     (store: GameStore, action: GameAction) => gameReducer(puzzle, store, action),
     puzzle,
-    createStore,
+    (p: PuzzleDefinition) => createStore(p, restore),
   );
 
   const doMove = useCallback(
@@ -111,6 +123,7 @@ export function useGame(puzzle: PuzzleDefinition): UseGameResult {
     canUndo: store.undoStack.length > 0,
     canRedo: store.redoStack.length > 0,
     solved,
+    history: store.undoStack,
     doMove,
     undo,
     redo,

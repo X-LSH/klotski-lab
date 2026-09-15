@@ -1,0 +1,18 @@
+{
+  "name": "Klotski Lab · 华容道实验室",
+  "short_name": "Klotski Lab",
+  "description": "可视化华容道求解器与算法实验室",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0b1020",
+  "theme_color": "#0b1020",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

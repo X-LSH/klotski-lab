@@ -20,16 +20,34 @@ import GameControls from '../components/GameControls';
 import ReplayControls from '../components/ReplayControls';
 import MoveCounter from '../components/MoveCounter';
 import SolverPanel, { type ComparisonEntry } from '../components/SolverPanel';
+import {
+  loadProgress,
+  saveProgress,
+  clearProgress,
+  recordCompletion,
+  recordDailyResult,
+} from '../storage/local-storage';
+import type { SavedProgress } from '../storage/local-storage';
+import { buildShareUrl, copyToClipboard, readPuzzleFromLocation } from '../storage/share';
 
 export default function Play() {
-  // 支持从关卡页 / 每日挑战 / 分享链接注入谜题；非法或缺失时回退经典谜题
+  // 谜题来源优先级：URL 分享码 > 关卡页注入 > 经典谜题
   const location = useLocation();
+  const [sharedPuzzle] = useState(() => readPuzzleFromLocation(window.location.hash));
   const incoming = (location.state as { puzzle?: PuzzleDefinition } | null)?.puzzle;
   const puzzle = useMemo(() => {
+    if (sharedPuzzle) return sharedPuzzle;
     if (incoming && validatePuzzle(incoming).valid) return incoming;
     return CLASSIC_PUZZLE;
-  }, [incoming]);
-  const game = useGame(puzzle);
+  }, [sharedPuzzle, incoming]);
+  // 重新打开可以继续：读取与本谜题匹配的进度存档
+  const [restored] = useState<SavedProgress | null>(() => {
+    const saved = loadProgress();
+    if (saved && saved.puzzle.name === puzzle.name) return saved;
+    return null;
+  });
+  const game = useGame(puzzle, restored);
+  const [shareMessage, setShareMessage] = useState<string | null>(null);
 
   const [mode, setMode] = useState<'play' | 'replay'>('play');
   const [algorithm, setAlgorithm] = useState<AlgorithmName>('bfs');
@@ -72,6 +90,24 @@ export default function Play() {
     }, 1000);
     return () => clearInterval(timer);
   }, [started, game.solved]);
+
+  // 进度持久化：游戏中每步落盘，胜利 / 重置时清除
+  useEffect(() => {
+    if (game.solved) {
+      clearProgress();
+      return;
+    }
+    if (game.moveCount === 0) return;
+    const positions: Record<string, { x: number; y: number }> = {};
+    for (const piece of game.state.pieces) positions[piece.id] = { x: piece.x, y: piece.y };
+    saveProgress({
+      puzzle,
+      positions,
+      history: game.history,
+      moveCount: game.moveCount,
+      savedAt: Date.now(),
+    });
+  }, [game.state, game.solved, game.moveCount, game.history, puzzle]);
 
   // 页面离开时终止未完成的求解，避免 Worker 泄漏
   useEffect(() => {
@@ -169,22 +205,46 @@ export default function Play() {
     setComparing(false);
   }, [puzzle, game.state]);
 
-  // 胜利结算：从初始状态求最优解
+  // 胜利结算：从初始状态求最优解，并保存完成记录（关卡 / 每日挑战）
   useEffect(() => {
     if (!game.solved || optimal !== null) return;
     let cancelled = false;
     solvePuzzle({ puzzle, initialState: createInitialState(puzzle) }, 'bfs').then((result) => {
       if (!cancelled && result.solved) setOptimal(result.depth);
     });
+    recordCompletion({
+      levelId: puzzle.name,
+      bestMoves: game.moveCount,
+      bestTimeMs: elapsedMs,
+      completedAt: Date.now(),
+    });
+    if (puzzle.name.startsWith('每日挑战')) {
+      recordDailyResult({
+        date: puzzle.name.replace('每日挑战 ', ''),
+        completed: true,
+        bestMoves: game.moveCount,
+        bestTimeMs: elapsedMs,
+      });
+    }
     return () => {
       cancelled = true;
     };
-  }, [game.solved, optimal, puzzle]);
+  }, [game.solved, optimal, puzzle, game.moveCount, elapsedMs]);
 
   const exitReplay = useCallback(() => {
     setMode('play');
     setReplayPlaying(false);
   }, []);
+
+  const handleShare = useCallback(async () => {
+    try {
+      const url = buildShareUrl(puzzle);
+      const ok = await copyToClipboard(url);
+      setShareMessage(ok ? '分享链接已复制' : '复制失败，请手动复制地址栏');
+    } catch {
+      setShareMessage('该谜题暂无法生成分享链接');
+    }
+  }, [puzzle]);
 
   const boardState = mode === 'replay' && session ? session.states[replayIndex] : game.state;
 
@@ -236,6 +296,19 @@ export default function Play() {
             {stopped && <p className="play__unsolvable">已停止求解。</p>}
             {solveResult && !solveResult.solved && (
               <p className="play__unsolvable">当前局面无解或达到搜索上限。</p>
+            )}
+            <div className="play__share">
+              <button type="button" onClick={handleShare} aria-label="复制分享链接">
+                复制分享链接
+              </button>
+              {shareMessage && (
+                <span className="play__share-message" role="status">
+                  {shareMessage}
+                </span>
+              )}
+            </div>
+            {restored && game.moveCount > 0 && (
+              <p className="play__share-message">已恢复上次进度（{restored.moveCount} 步）。</p>
             )}
           </>
         ) : (

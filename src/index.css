@@ -1060,3 +1060,90 @@ a:focus-visible {
   border-radius: 4px;
   background: rgba(255, 255, 255, 0.08);
 }
+
+/* ===== 我的谜题 / 分享 ===== */
+.play__share {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.play__share-message {
+  font-size: 13px;
+  color: var(--fg-dim);
+}
+
+.my-puzzles {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--bg-panel);
+  border: 1px solid var(--bg-panel-border);
+}
+
+.my-puzzles__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.my-puzzles__header h4 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.my-puzzles__empty {
+  margin: 0;
+  font-size: 13px;
+  color: var(--fg-dim);
+}
+
+.my-puzzles__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.my-puzzles__item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.my-puzzles__load {
+  flex: 1;
+  text-align: left;
+  padding: 6px 8px;
+  border: 1px solid var(--bg-panel-border);
+}
+
+.my-puzzles__actions {
+  display: flex;
+  gap: 4px;
+}
+
+.my-puzzles__actions button {
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+.my-puzzles__rename {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+}
+
+.my-puzzles__rename input {
+  flex: 1;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--bg-panel-border);
+  border-radius: 6px;
+  padding: 4px 8px;
+}

@@ -25,6 +25,11 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # 必须在构建前执行：全新仓库首次运行时 Pages 尚未启用，
+      # enablement: true 会在这一步自动开启 Pages（否则报 Not Found 直接失败）。
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
       - run: npm run lint
       - run: npm run test
       - run: npm run build

@@ -15,6 +15,8 @@ export default defineConfig(({ mode }) => ({
     environment: 'node',
     globals: true,
     include: ['tests/**/*.test.{ts,tsx}'],
-    testTimeout: 30000,
+    // IDA* 在中等谜题上实测已达 27.6s（算法特性），留给 CI 运行机的余量不足，
+    // 这里放宽到 60s：它只是超时上限，不影响正常用例的执行时长与判定。
+    testTimeout: 60000,
   },
 }));

@@ -899,3 +899,164 @@ a:focus-visible {
     width: 100%;
   }
 }
+
+/* ===== 关卡页 ===== */
+.levels {
+  padding: 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.levels__title {
+  margin: 0;
+}
+
+.levels__daily,
+.levels__generator {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--bg-panel);
+  border: 1px solid var(--accent);
+}
+
+.levels__generator {
+  flex-direction: column;
+  align-items: stretch;
+  border-color: var(--bg-panel-border);
+}
+
+.levels__daily h3,
+.levels__generator h3 {
+  margin: 0 0 4px;
+}
+
+.levels__daily p,
+.levels__hint {
+  margin: 0;
+  color: var(--fg-dim);
+  font-size: 14px;
+}
+
+.levels__generator-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.levels__generator-form label,
+.levels__filters label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--fg-dim);
+}
+
+.levels__generator-form input,
+.levels__filters select {
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--bg-panel-border);
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+
+.levels__generator-form input[type='text'] {
+  width: 140px;
+}
+
+.levels__generator-form input[type='number'] {
+  width: 90px;
+}
+
+.levels__filters {
+  display: flex;
+  gap: 16px;
+}
+
+.levels__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.level-card {
+  text-align: left;
+  padding: 14px;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.level-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.level-card__name {
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.level-card__tier {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--bg-panel-border);
+}
+
+.level-card__tier--easy {
+  color: #7cc98f;
+  border-color: #7cc98f;
+}
+
+.level-card__tier--normal {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.level-card__tier--hard {
+  color: var(--goal);
+  border-color: var(--goal);
+}
+
+.level-card__tier--expert {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.level-card__desc {
+  margin: 0;
+  font-size: 13px;
+  color: var(--fg-dim);
+}
+
+.level-card__meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: var(--fg-dim);
+}
+
+.level-card__tags {
+  display: flex;
+  gap: 4px;
+}
+
+.level-card__tag {
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+}

@@ -2,10 +2,12 @@
  * 游戏页：棋盘 + 操作 + 求解（Worker，支持进度 / 停止 / 算法对比）+ 回放 + 胜利结算。
  * React 只管理状态与展示，所有移动合法性都经由 core 判断。
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
-import type { Move } from '../types';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
+import type { Move, PuzzleDefinition } from '../types';
 import { CLASSIC_PUZZLE } from '../core/presets';
 import { createInitialState } from '../core/state';
+import { validatePuzzle } from '../core/validator';
 import { useGame } from '../hooks/useGame';
 import { solvePuzzle, solvePuzzleWithHandle } from '../solver/solver-service';
 import type { SolveHandle } from '../solver/solver-client';
@@ -20,7 +22,13 @@ import MoveCounter from '../components/MoveCounter';
 import SolverPanel, { type ComparisonEntry } from '../components/SolverPanel';
 
 export default function Play() {
-  const puzzle = CLASSIC_PUZZLE;
+  // 支持从关卡页 / 每日挑战 / 分享链接注入谜题；非法或缺失时回退经典谜题
+  const location = useLocation();
+  const incoming = (location.state as { puzzle?: PuzzleDefinition } | null)?.puzzle;
+  const puzzle = useMemo(() => {
+    if (incoming && validatePuzzle(incoming).valid) return incoming;
+    return CLASSIC_PUZZLE;
+  }, [incoming]);
   const game = useGame(puzzle);
 
   const [mode, setMode] = useState<'play' | 'replay'>('play');
@@ -69,6 +77,24 @@ export default function Play() {
   useEffect(() => {
     return () => solveHandleRef.current?.cancel();
   }, []);
+
+  // 谜题切换时（如从关卡页进入）重置整局
+  const prevPuzzleRef = useRef(puzzle);
+  useEffect(() => {
+    if (prevPuzzleRef.current === puzzle) return;
+    prevPuzzleRef.current = puzzle;
+    solveHandleRef.current?.cancel();
+    game.reset();
+    setStarted(false);
+    setElapsedMs(0);
+    setOptimal(null);
+    setSolveResult(null);
+    setComparison(null);
+    setStopped(false);
+    setMode('play');
+    setSession(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [puzzle]);
 
   const handleReset = useCallback(() => {
     game.reset();

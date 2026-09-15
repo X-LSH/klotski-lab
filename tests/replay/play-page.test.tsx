@@ -44,6 +44,6 @@ describe('App 路由', () => {
   it('默认渲染首页（App 自带路由，不能再包一层 Router）', () => {
     render(<App />);
     expect(screen.getByRole('heading', { name: 'Klotski Lab' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: '开始' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '每日挑战' })).toBeTruthy();
   });
 });

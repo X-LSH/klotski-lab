@@ -4,6 +4,8 @@ import Play from './pages/Play';
 import Levels from './pages/Levels';
 import Editor from './pages/Editor';
 import Observatory from './pages/Observatory';
+import About from './pages/About';
+import ErrorBoundary from './components/ErrorBoundary';
 
 // 使用 HashRouter：GitHub Pages 纯静态托管无需配置服务端回退路由。
 export default function App() {
@@ -19,15 +21,19 @@ export default function App() {
           <NavLink to="/levels">关卡</NavLink>
           <NavLink to="/editor">编辑器</NavLink>
           <NavLink to="/observatory">观测台</NavLink>
+          <NavLink to="/about">关于</NavLink>
         </nav>
       </header>
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/play" element={<Play />} />
-        <Route path="/levels" element={<Levels />} />
-        <Route path="/editor" element={<Editor />} />
-        <Route path="/observatory" element={<Observatory />} />
-      </Routes>
+      <ErrorBoundary>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/play" element={<Play />} />
+          <Route path="/levels" element={<Levels />} />
+          <Route path="/editor" element={<Editor />} />
+          <Route path="/observatory" element={<Observatory />} />
+          <Route path="/about" element={<About />} />
+        </Routes>
+      </ErrorBoundary>
     </HashRouter>
   );
 }

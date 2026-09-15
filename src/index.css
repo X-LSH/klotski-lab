@@ -9,6 +9,16 @@
   --accent-strong: #2f6fc4;
   --goal: #e0b34a;
   --danger: #d06565;
+
+  /* ── 弹簧动效令牌 ─────────────────────────────────────────────
+     阻尼比 ≈ 1.0（临界阻尼，不过冲）、响应 ≈ 0.26s。
+     参考 Apple 官方「移动 / 画中画」参数（damping 1.0 / response 0.4s）；
+     落子是离散且可预期的动作，收紧响应时间以保持跟手，同时保留物理减速感。 */
+  --spring-move-ms: 260ms;
+  --spring-move: cubic-bezier(0.22, 1, 0.36, 1);
+  /* 回弹：末段常有少量过冲，对应 Apple 的「橡胶边界」而非硬截断 */
+  --spring-settle-ms: 320ms;
+  --spring-settle: cubic-bezier(0.3, 1.36, 0.55, 1);
 }
 
 * {
@@ -17,7 +27,6 @@
 
 body {
   margin: 0;
-  background: var(--bg);
   color: var(--fg);
   font-family:
     system-ui,
@@ -26,6 +35,32 @@ body {
     'PingFang SC',
     'Microsoft YaHei',
     sans-serif;
+
+  /* ── 背景：单一光源方向的「深色剧场」────────────────────────────
+     纯色平板会让内容浮在虚空里。这里用五层叠加建立空间：
+     ① 顶部聚光    → 明确光源在上方
+     ② 实验室网格  → 极淡的技术感底纹，提供尺度参照
+     ③ 底部反光    → 与顶部呼应的地面线，暗示台面
+     ④ 四周暗角    → 把视线收拢到中间的内容区
+     全部由 CSS 渐变构成，不引入任何图片资源。
+
+     注意：暗角与聚光都刻意压低振幅、拉长过渡区间 —— 大范围深色渐变在 8 位色深下
+     很容易出现可见的色阶断层（横向条带），振幅越大越明显。 */
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(1240px 660px at 50% -10%, rgba(74, 143, 224, 0.15), transparent 70%),
+    linear-gradient(rgba(255, 255, 255, 0.014) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.014) 1px, transparent 1px),
+    radial-gradient(1000px 460px at 50% 108%, rgba(224, 179, 74, 0.04), transparent 80%),
+    radial-gradient(1700px 1150px at 50% 46%, transparent 46%, rgba(0, 0, 0, 0.34) 100%);
+  background-size:
+    100% 100%,
+    54px 54px,
+    54px 54px,
+    100% 100%,
+    100% 100%;
+  background-repeat: no-repeat, repeat, repeat, no-repeat, no-repeat;
+  background-attachment: fixed;
 }
 
 button {
@@ -54,12 +89,21 @@ a:focus-visible {
 }
 
 /* ===== 顶部导航 ===== */
+/* 半透明毛玻璃 + 吸顶：内容滚动时从材质下穿过，强化层级深度。
+   backdrop-filter 不支持的环境降级为不透明底色，不影响可用性。 */
 .app-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
   display: flex;
   align-items: center;
   gap: 24px;
   padding: 12px 20px;
+  background: rgba(11, 16, 32, 0.72);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  backdrop-filter: blur(20px) saturate(160%);
   border-bottom: 1px solid var(--bg-panel-border);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.05) inset;
 }
 
 .app-header__brand {
@@ -150,15 +194,41 @@ a:focus-visible {
   color: var(--danger);
 }
 
-/* ===== 棋盘 ===== */
+/* ===== 棋盘：一块被顶光照亮的台面 ===== */
 .board {
   position: relative;
   width: 100%;
-  border-radius: 12px;
-  background: var(--bg-panel);
+  border-radius: 18px;
   border: 1px solid var(--bg-panel-border);
+  /* 自上而下的受光渐变：顶部亮、底部沉，让棋盘“立”在台面上，而不是浮在纯色底上 */
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.075) 0%,
+      rgba(255, 255, 255, 0.022) 34%,
+      rgba(0, 0, 0, 0.28) 100%
+    ),
+    rgba(13, 19, 36, 0.92);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.13),
+    /* 顶部受光亮边 */
+    inset 0 -1px 0 rgba(0, 0, 0, 0.5),
+    /* 底部暗边 */
+    0 34px 64px -26px rgba(0, 0, 0, 0.88),
+    /* 落在地面的长投影 */
+    0 4px 12px rgba(0, 0, 0, 0.45);
   overflow: hidden;
   user-select: none;
+}
+
+/* 台面内部聚光：全站光源方向统一来自上方 */
+.board::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: radial-gradient(115% 55% at 50% -10%, rgba(255, 255, 255, 0.08), transparent 62%);
 }
 
 .board__grid {
@@ -168,60 +238,150 @@ a:focus-visible {
   grid-template-columns: repeat(4, 1fr);
 }
 
+/* 网格线压到很淡：它只提供尺度参照，不该与棋子争夺注意力 */
 .board__cell {
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.038);
 }
 
+/* 出口 = 焦点色（聚光金）：与「可交互色（电光蓝）」形成唯一的一组锚点 */
 .board__exit {
   position: absolute;
+  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 13px;
-  color: var(--goal);
-  border: 1px dashed var(--goal);
-  border-radius: 6px;
   margin: 2px;
+  border-radius: 12px;
+  border: 1px dashed rgba(224, 179, 74, 0.6);
+  /* 底色要略深于台面，把穿过这里的网格线压掉，否则会出现突兀的十字 */
+  background:
+    radial-gradient(80% 110% at 50% 100%, rgba(224, 179, 74, 0.17), transparent 72%),
+    rgba(10, 14, 27, 0.9);
+  box-shadow: inset 0 0 22px -8px rgba(224, 179, 74, 0.75);
+  color: var(--goal);
+  font-size: 13px;
+  letter-spacing: 0.14em;
+  text-shadow: 0 0 12px rgba(224, 179, 74, 0.6);
 }
 
-/* ===== 棋子 ===== */
+/* ===== 棋子 =====
+   设计要点：
+   - 焦点唯一 —— 只有目标棋子（曹操）拿到高饱和电光蓝与辉光，其余棋子降饱和成
+     冷蓝灰。到处高亮等于没有焦点；
+   - 体积感来自「顶部受光 + 底部暗边 + 接触阴影 + 悬空投影」四层叠加，
+     而不是靠更大的模糊；
+   - 用较大圆角近似连续曲率，避免小圆角带来的廉价感。 */
 .piece {
   position: absolute;
+  z-index: 2;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
-  background: linear-gradient(160deg, #33517e, #22385c);
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  /* 不留外边距：绝对定位元素的 margin 只会把棋子整体推偏一格，
+     并不能产生间距（相邻棋子仍然边贴边）。真正的留白由下面的 --piece-scale 内缩得到，
+     因为它是围绕元素中心缩放的，格位对齐关系不受影响。 */
+  margin: 0;
+  border-radius: 13px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
   color: var(--fg);
   font-weight: 600;
   touch-action: none;
-  transition: transform 0.08s ease-out;
-  margin: 2px;
+  /* 内缩比例：0.94 让相邻棋子之间出现真实空隙，画面从「一整块板」变成「一枚枚棋子」 */
+  --piece-scale: 0.94;
+  /* 投影放在自定义属性里：各状态只改这一个变量，
+     编辑器的高亮描边（.piece--selected / .piece--overlap）也能与之叠加而不互相覆盖 */
+  --piece-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.21), inset 0 -1px 0 rgba(0, 0, 0, 0.38),
+    0 2px 3px rgba(0, 0, 0, 0.4), 0 10px 20px -10px rgba(0, 0, 0, 0.7);
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.17) 0%,
+      rgba(255, 255, 255, 0.045) 20%,
+      rgba(255, 255, 255, 0) 46%
+    ),
+    linear-gradient(168deg, #344f7e 0%, #243a60 56%, #1a2a46 100%);
+  box-shadow: var(--piece-shadow);
+
+  /* 位置完全由 transform 表达（见 Piece.tsx），因此只需过渡这一个属性。
+     释放瞬间不带 --dragging，浏览器便从「手指离开时的真实位置」开始做弹簧收敛：
+     位移不足一格时自然呈现橡胶回弹，位移到位时几乎无感地贴入格子。
+     回放 / 撤销 / 重做 的逐格移动也因此变成平滑滑动，而不是瞬移。 */
+  transition:
+    transform var(--spring-move-ms) var(--spring-move),
+    filter 170ms ease,
+    box-shadow 170ms ease;
+  will-change: transform;
 }
 
-.piece--2x2 {
-  background: linear-gradient(160deg, #4a8fe0, #2f6fc4);
-}
-
+/* 目标棋子 = 全盘唯一焦点 */
 .piece--goal {
-  box-shadow: 0 0 0 2px var(--goal) inset;
+  border-color: rgba(255, 255, 255, 0.26);
+  color: #fff;
+  --piece-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.42), inset 0 -1px 0 rgba(0, 0, 0, 0.34),
+    0 2px 4px rgba(0, 0, 0, 0.45), 0 14px 30px -12px rgba(74, 143, 224, 0.85),
+    0 0 0 1px rgba(74, 143, 224, 0.4);
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.26) 0%,
+      rgba(255, 255, 255, 0.06) 22%,
+      rgba(255, 255, 255, 0) 50%
+    ),
+    linear-gradient(168deg, #5fa4ee 0%, #3672c2 52%, #1f4884 100%);
 }
 
 .piece--interactive {
   cursor: grab;
 }
 
-.piece--dragging {
+/* 悬停：轻微提亮，暗示「这是可以动的」 */
+.piece--interactive:hover {
+  filter: brightness(1.09);
+}
+
+/* 按下即反馈（不是抬起才响应）：光从表面退开、接触阴影收紧，读作「被压低」 */
+.piece--interactive:active {
   cursor: grabbing;
+  filter: brightness(0.92);
+  --piece-scale: 0.9;
+  --piece-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12), inset 0 3px 7px rgba(0, 0, 0, 0.45),
+    0 1px 2px rgba(0, 0, 0, 0.5);
+  transition:
+    transform 120ms var(--spring-move),
+    filter 90ms ease,
+    box-shadow 90ms ease;
+}
+
+/* 拖拽中：1:1 跟随手指，不做任何插值；略微放大并抬起投影，读作「被拎起来」 */
+.piece--dragging {
   z-index: 10;
+  cursor: grabbing;
   transition: none;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  filter: brightness(1.07);
+  --piece-scale: 0.985;
+  --piece-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28), 0 20px 36px -8px rgba(0, 0, 0, 0.78),
+    0 0 0 1px rgba(255, 255, 255, 0.07);
 }
 
 .piece__label {
   pointer-events: none;
-  font-size: clamp(12px, 3.5vw, 20px);
+  font-size: clamp(12px, 3.2vw, 19px);
+  font-weight: 600;
+  line-height: 1;
+  /* 光学字号：小字略加字距更清晰，并压一层暗影保证在材质上可读 */
+  letter-spacing: 0.06em;
+  color: rgba(232, 236, 248, 0.9);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.piece--goal .piece__label {
+  color: #fff;
+  letter-spacing: 0.08em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
 }
 
 /* ===== 侧边组件 ===== */
@@ -408,6 +568,23 @@ a:focus-visible {
   font-weight: 500;
 }
 
+/* 前置提示 / 未解出说明：低饱和的说明性文字，不与主流程按钮抢视线 */
+.solver-panel__notice {
+  margin: 0;
+  padding: 8px 10px;
+  border-left: 2px solid var(--goal);
+  border-radius: 0 6px 6px 0;
+  background: rgba(224, 179, 74, 0.08);
+  color: var(--fg-dim);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+/* 未解出的算法行降饱和，让已解出的结果成为视觉焦点 */
+.solver-panel__row--unresolved td {
+  color: var(--fg-dim);
+}
+
 /* ===== 胜利结算 ===== */
 .victory {
   position: fixed;
@@ -501,12 +678,16 @@ a:focus-visible {
 }
 
 .piece--selected {
-  box-shadow: 0 0 0 2px var(--accent);
+  box-shadow:
+    0 0 0 2px var(--accent),
+    var(--piece-shadow);
 }
 
 .piece--overlap {
   border-color: var(--danger);
-  box-shadow: 0 0 0 2px var(--danger);
+  box-shadow:
+    0 0 0 2px var(--danger),
+    var(--piece-shadow);
 }
 
 .puzzle-props {
@@ -1285,4 +1466,25 @@ a:focus-visible {
   font-size: 12px;
   color: var(--fg-dim);
   word-break: break-all;
+}
+
+/* ===== 无障碍：减弱动效 ===== */
+/* 关注前庭功能的用户应能关掉一切自动运动。这里把弹簧位移降为瞬时，
+   保留状态变化的静态线索（描边、亮度差异仍可感知）。
+   注意：只关动画，不关功能 —— 拖拽与落子行为完全不变。 */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --spring-move-ms: 1ms;
+    --spring-settle-ms: 1ms;
+  }
+
+  .piece,
+  .piece--interactive:active {
+    transition: none;
+  }
+
+  .app-header {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
 }

@@ -34,8 +34,8 @@ export default function Board({ puzzle, state, interactive, onMove }: BoardProps
 
   const { width: boardW, height: boardH } = puzzle.board;
 
-  /** 把像素位移换算为格数，并按主轴方向截断到合法范围 */
-  const computeClampedCells = (info: DragInfo, clientX: number, clientY: number) => {
+  /** 像素位移换算为主轴方向与格数（未截断，可超出合法范围） */
+  const rawDragCells = (info: DragInfo, clientX: number, clientY: number) => {
     const cellW = info.boardRect.width / boardW;
     const cellH = info.boardRect.height / boardH;
     const deltaX = (clientX - info.startClientX) / cellW;
@@ -44,10 +44,35 @@ export default function Board({ puzzle, state, interactive, onMove }: BoardProps
     const raw = axis === 'x' ? deltaX : deltaY;
     const direction: Direction =
       axis === 'x' ? (raw > 0 ? 'right' : 'left') : raw > 0 ? 'down' : 'up';
-    const maxSteps = maxStepsInDirection(state, puzzle, info.pieceId, direction);
-    const clamped = Math.sign(raw) * Math.min(Math.abs(raw), maxSteps);
-    return { axis, direction, cells: clamped };
+    return { axis, direction, raw };
   };
+
+  /** 唯一决定「实际移动几格」的硬截断 */
+  const clampCells = (raw: number, maxSteps: number) =>
+    Math.sign(raw) * Math.min(Math.abs(raw), maxSteps);
+
+  /**
+   * 橡胶缓冲（对齐 Apple「边界使用橡胶缓冲，而非硬截断」）：
+   * 超出合法范围后仍可继续拖动，但位移按双曲衰减、渐近收敛到 RUBBER_MAX_CELLS，
+   * 而不是硬生生卡住不动。松手时仍以硬截断结果落子，因此视觉余量不影响移动合法性。
+   */
+  const RUBBER_MAX_CELLS = 1.6;
+  const rubberBand = (overflow: number) => {
+    const x = (overflow * 0.55) / RUBBER_MAX_CELLS;
+    return (1 - 1 / (x + 1)) * RUBBER_MAX_CELLS;
+  };
+
+  /** 视觉位移：合法范围内 1:1 跟随，超出部分走橡胶衰减 */
+  const visualCells = (raw: number, maxSteps: number) => {
+    const clamped = clampCells(raw, maxSteps);
+    const overflow = Math.abs(raw) - Math.abs(clamped);
+    if (overflow <= 0) return clamped;
+    return clamped + Math.sign(raw) * rubberBand(overflow);
+  };
+
+  /** 当前拖拽在该方向上的合法步数上限 */
+  const maxStepsFor = (pieceId: string, direction: Direction) =>
+    maxStepsInDirection(state, puzzle, pieceId, direction);
 
   const handleDragStart = (pieceId: string, event: ReactPointerEvent<HTMLDivElement>) => {
     if (!interactive || !boardRef.current) return;
@@ -65,7 +90,8 @@ export default function Board({ puzzle, state, interactive, onMove }: BoardProps
   const handleDragMove = (event: ReactPointerEvent<HTMLDivElement>) => {
     const info = dragRef.current;
     if (!info) return;
-    const { axis, cells } = computeClampedCells(info, event.clientX, event.clientY);
+    const { axis, direction, raw } = rawDragCells(info, event.clientX, event.clientY);
+    const cells = visualCells(raw, maxStepsFor(info.pieceId, direction));
     setDragOffset({
       pieceId: info.pieceId,
       dx: axis === 'x' ? cells : 0,
@@ -78,10 +104,11 @@ export default function Board({ puzzle, state, interactive, onMove }: BoardProps
     if (!info) return;
     dragRef.current = null;
     setDragOffset(null);
-    const { direction, cells } = computeClampedCells(info, event.clientX, event.clientY);
-    const steps = Math.round(Math.abs(cells));
+    // 落子步数取硬截断结果（不含橡胶余量），合法性仍由 core 最终裁决
+    const { direction, raw } = rawDragCells(info, event.clientX, event.clientY);
+    const steps = Math.round(Math.abs(clampCells(raw, maxStepsFor(info.pieceId, direction))));
     if (steps < 1) return; // 未移动一格，直接回弹
-    // 合法性由 core 最终裁决；失败则自然回弹（状态不变）
+    // 失败则自然回弹（状态不变）
     onMove({ pieceId: info.pieceId, direction, steps });
   };
 
@@ -129,9 +156,7 @@ export default function Board({ puzzle, state, interactive, onMove }: BoardProps
           isGoal={piece.id === puzzle.goal.pieceId}
           interactive={interactive}
           dragOffset={
-            dragOffset && dragOffset.pieceId === piece.id
-              ? { dx: dragOffset.dx / piece.width, dy: dragOffset.dy / piece.height }
-              : null
+            dragOffset?.pieceId === piece.id ? { dx: dragOffset.dx, dy: dragOffset.dy } : null
           }
           onDragStart={handleDragStart}
           onDragMove={handleDragMove}

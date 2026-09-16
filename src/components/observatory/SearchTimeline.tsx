@@ -20,7 +20,10 @@ export default function SearchTimeline({ points }: SearchTimelineProps) {
     return (
       <div className="search-timeline" aria-label="搜索时间线">
         <h3>搜索时间线</h3>
-        <p className="search-timeline__empty">求解进行中会记录访问 / 展开节点随时间的变化。</p>
+        <p className="search-timeline__empty">
+          点「开始搜索」后，这里画出「已处理局面数随时间」的曲线，
+          用来看算法跑得是否均匀、有没有在中途变慢。
+        </p>
       </div>
     );
   }

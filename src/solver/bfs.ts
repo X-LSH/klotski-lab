@@ -150,7 +150,14 @@ export function solveBfs(problem: SolveProblem, options: SolveOptions = {}): Sol
       // 终止条件 2：找到目标后停止，BFS 保证此时为最短解
       if (isSolved(next, puzzle)) {
         const moves = reconstructMoves(parents, nextKey);
-        emit?.({ type: 'goal_found', stateKey: nextKey, depth: moves.length });
+        // 带上父节点：观测台要能高亮「解路径」，而目标节点可能落在可视化上限之外、
+        // 只能靠这条边挂到树上
+        emit?.({
+          type: 'goal_found',
+          stateKey: nextKey,
+          parentKey: currentKey,
+          depth: moves.length,
+        });
         reportProgress(moves.length);
         return finish({
           solved: true,

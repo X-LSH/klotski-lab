@@ -1074,6 +1074,91 @@ textarea {
   margin: 0;
 }
 
+/* ── 开场说明 ──
+   此前页面从标题直接跳到工具栏，用户不知道这一页在看什么、
+   更不知道观察对象是「固定的经典谜题」。先把这两件事讲清楚。 */
+.observatory__intro {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.observatory__lead {
+  margin: 0;
+  max-width: 68ch;
+  font-size: var(--fs-sm);
+  line-height: 1.7;
+  color: var(--fg-dim);
+}
+
+.observatory__lead strong {
+  font-weight: 600;
+  color: var(--fg);
+}
+
+/* 观察对象：换题就是换实验材料，给足视觉权重并说明能看到多少 */
+.observatory__subject {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.observatory__subject-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--fs-sm);
+  color: var(--fg);
+}
+
+.observatory__subject-picker select {
+  min-width: 280px;
+  padding: 5px 8px;
+}
+
+.observatory__subject-note {
+  margin: 0;
+  max-width: 72ch;
+  font-size: var(--fs-xs);
+  line-height: 1.7;
+  color: var(--fg-faint);
+}
+
+/* 算法选择 + 该算法的一句话特点 */
+.observatory__picker {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.observatory__algorithm-hint {
+  margin: 0;
+  max-width: 62ch;
+  font-size: var(--fs-xs);
+  line-height: 1.6;
+  color: var(--fg-faint);
+}
+
+/* 面板通用小标题（标题 + 一句说明） */
+.panel-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.panel-head h3 {
+  margin: 0;
+}
+
+.panel-head__hint {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--fg-faint);
+}
+
 .observatory__toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -1104,6 +1189,11 @@ textarea {
 }
 
 .search-stats {
+  display: block;
+}
+
+/* 指标网格：标题在外层，网格只负责排列数字 */
+.search-stats__grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: 8px;
@@ -1154,13 +1244,92 @@ textarea {
   max-height: 420px;
 }
 
+/* 搜索树：标题 + 图例 + 操作提示。
+   圆点样式没有图例等于让用户猜，而「哪个点是最优解路径」正是这一页最该看懂的信息。 */
+.search-tree__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.search-tree__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--fg-dim);
+}
+
+.search-tree__legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.search-tree__legend-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #2f2f36;
+  border: 1px solid var(--line-strong);
+}
+
+.search-tree__legend-dot--root {
+  background: #2f2f36;
+  border-color: var(--fg-dim);
+}
+
+.search-tree__legend-dot--path {
+  background: var(--copper);
+  border-color: var(--copper);
+}
+
+.search-tree__legend-dot--goal {
+  background: var(--copper-bright);
+  border-color: var(--copper-bright);
+}
+
+.search-tree__hint {
+  margin: 6px 0 0;
+  font-size: var(--fs-xs);
+  color: var(--fg-faint);
+}
+
 .search-tree__empty,
 .search-tree__note,
 .search-timeline__empty,
 .node-inspector__empty,
 .algorithm-comparison__empty {
   color: var(--fg-dim);
-  font-size: var(--fs-md);
+  font-size: var(--fs-sm);
+  line-height: 1.7;
+}
+
+/* 竞速对比：一句「看什么」+ 一句由数据得出的结论 */
+.algorithm-comparison__lead {
+  margin: 0 0 10px;
+  font-size: var(--fs-xs);
+  line-height: 1.7;
+  color: var(--fg-dim);
+}
+
+.algorithm-comparison__empty--hint {
+  color: var(--fg-faint);
+  font-size: var(--fs-xs);
+}
+
+.algorithm-comparison__summary {
+  margin: 10px 0 0;
+  padding: 9px 12px;
+  border: 1px solid var(--copper-deep);
+  border-radius: var(--r-md);
+  background: var(--copper-a08);
+  font-size: var(--fs-sm);
+  line-height: 1.6;
+  color: var(--fg);
 }
 
 .search-tree__edge {
@@ -1173,19 +1342,23 @@ textarea {
   stroke-width: 1.6;
 }
 
+/* 搜索树节点：仍遵守「单一色相」—— 中性石墨 → 铜 → 亮铜 三级递进。
+   早期版本普通节点是蓝色（第二色相），而且解路径与目标节点同为铜色、无法区分。 */
 .search-tree__node {
-  fill: #33517e;
-  stroke: rgba(255, 255, 255, 0.3);
+  fill: #2f2f36;
+  stroke: var(--line-strong);
   stroke-width: 1;
 }
 
 .search-tree__node--path {
-  fill: var(--accent);
+  fill: var(--copper);
+  stroke: var(--copper);
 }
 
 .search-tree__node--goal {
-  fill: var(--goal);
-  stroke: var(--goal);
+  fill: var(--copper-bright);
+  stroke: var(--copper-bright);
+  stroke-width: 1.5;
 }
 
 .search-tree__node--selected {

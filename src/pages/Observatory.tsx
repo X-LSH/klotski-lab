@@ -8,12 +8,14 @@
  * - 暂停暂不支持（Worker 无法可靠暂停），按规范不假装支持。
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { CLASSIC_PUZZLE } from '../core/presets';
 import { createInitialState } from '../core/state';
+import { LEVELS } from '../generator/presets';
+import { DIFFICULTY_LABELS } from '../components/copy';
 import { solvePuzzleWithHandle } from '../solver/solver-service';
 import type { SolveHandle } from '../solver/solver-client';
 import type { SolveProgress, SolveResult } from '../solver/result';
 import type { AlgorithmName } from '../solver/registry';
+import { ALGORITHM_LABELS } from '../solver/registry';
 import type { SearchEvent } from '../solver/events';
 import {
   applySearchEvent,
@@ -27,13 +29,25 @@ import SearchTimeline, { type TimelinePoint } from '../components/observatory/Se
 import SearchTree from '../components/observatory/SearchTree';
 import AlgorithmComparison from '../components/observatory/AlgorithmComparison';
 import NodeInspector from '../components/observatory/NodeInspector';
-import { END_REASON_LABELS } from '../components/observatory/labels';
+import { ALGORITHM_HINTS, END_REASON_LABELS } from '../components/observatory/labels';
 
 const MAX_VISUALIZATION_NODES = 800;
 const FLUSH_INTERVAL_MS = 150;
 
+/**
+ * 可观察的谜题。
+ * 默认选较小的题：观测台的目的是「看懂算法怎么走」，
+ * 而经典横刀立马最优解 116 步，前 800 个局面只覆盖最浅的几层，树看不出全貌。
+ */
+const DEFAULT_SUBJECT_ID = 'warmup';
+/** 最优解超过这个步数，搜索树就画不完整了（只能覆盖浅层） */
+const DEEP_SOLUTION_THRESHOLD = 40;
+
 export default function Observatory() {
-  const puzzle = CLASSIC_PUZZLE;
+  const [subjectId, setSubjectId] = useState(DEFAULT_SUBJECT_ID);
+  const subject = LEVELS.find((level) => level.id === subjectId) ?? LEVELS[0];
+  const puzzle = subject.puzzle;
+  const deepSolution = (subject.optimalDepth ?? 0) >= DEEP_SOLUTION_THRESHOLD;
   const [algorithm, setAlgorithm] = useState<AlgorithmName>('bfs');
   const [running, setRunning] = useState(false);
   const [racing, setRacing] = useState(false);
@@ -127,6 +141,15 @@ export default function Observatory() {
     setTimelineVersion((v) => v + 1);
   }, []);
 
+  /** 换观察对象：旧树与旧统计对新题没有意义，直接清空 */
+  const handleSubjectChange = useCallback(
+    (id: string) => {
+      setSubjectId(id);
+      handleReset();
+    },
+    [handleReset],
+  );
+
   const handleRace = useCallback(async () => {
     handleRef.current?.cancel();
     setRunning(false);
@@ -146,26 +169,68 @@ export default function Observatory() {
   }, [puzzle]);
 
   const selectedNode = selectedKey ? (treeRef.current.nodes.get(selectedKey) ?? null) : null;
-  // treeVersion / timelineVersion 仅用于触发重渲染，数据本体在 ref 中
-  void treeVersion;
+  // timelineRef 是原地 push 的数组，组件每次渲染都会重算折线，这里只需触发重渲染
   void timelineVersion;
 
   return (
     <main className="observatory">
-      <h2 className="observatory__title">算法观测台</h2>
+      <header className="observatory__intro">
+        <h2 className="observatory__title">算法观测台</h2>
+        {/* 这个页面此前只有标题就直接是工具栏，用户不知道在观察什么、按钮会做什么。
+            现在先讲清三件事：看什么、看的是哪道题、这道题能看到多少。 */}
+        <p className="observatory__lead">
+          把搜索算法的「思考过程」画出来：树里的<strong>每个圆点是一个局面</strong>，
+          <strong>连线是走一步</strong>。算法每访问一个局面，这里就多一个点。
+        </p>
+
+        <div className="observatory__subject">
+          <label className="observatory__subject-picker">
+            <span>观察对象</span>
+            <select
+              value={subjectId}
+              disabled={running || racing}
+              onChange={(e) => handleSubjectChange(e.target.value)}
+            >
+              {LEVELS.map((level) => (
+                <option key={level.id} value={level.id}>
+                  {level.name} · {DIFFICULTY_LABELS[level.difficulty]} ·{' '}
+                  {level.puzzle.board.width}×{level.puzzle.board.height}
+                  {level.optimalDepth !== undefined ? ` · 最优 ${level.optimalDepth} 步` : ''}
+                </option>
+              ))}
+            </select>
+          </label>
+          <p className="observatory__subject-note">
+            {subject.description}
+            {deepSolution
+              ? ' 这道题的最优解很深，搜索树只能覆盖最浅的几层；目标局面仍会单独标出来。想看完整个搜索过程，换一道较小的谜题。'
+              : ' 这道题规模不大，搜索树通常能完整画出来。'}
+          </p>
+        </div>
+      </header>
+
       <div className="observatory__toolbar">
-        <AlgorithmSelector algorithm={algorithm} disabled={running || racing} onChange={setAlgorithm} />
+        <div className="observatory__picker">
+          <AlgorithmSelector algorithm={algorithm} disabled={running || racing} onChange={setAlgorithm} />
+          <p className="observatory__algorithm-hint">{ALGORITHM_HINTS[algorithm]}</p>
+        </div>
         <div className="observatory__actions">
           {running ? (
-            <button type="button" onClick={handleStop} aria-label="停止">
-              停止
+            <button type="button" onClick={handleStop} aria-label="停止搜索" title="中断当前搜索">
+              停止搜索
             </button>
           ) : (
-            <button type="button" onClick={handleStart} disabled={racing} aria-label="开始">
-              开始
+            <button
+              type="button"
+              onClick={handleStart}
+              disabled={racing}
+              aria-label="开始搜索"
+              title={`用 ${ALGORITHM_LABELS[algorithm]} 搜索这道题，实时画出搜索树与统计`}
+            >
+              开始搜索
             </button>
           )}
-          <button type="button" onClick={handleReset} aria-label="重置">
+          <button type="button" onClick={handleReset} aria-label="重置" title="清空搜索树、统计与结果">
             重置
           </button>
           <button
@@ -173,9 +238,10 @@ export default function Observatory() {
             className="observatory__race"
             onClick={handleRace}
             disabled={running || racing}
-            aria-label="竞速全部算法"
+            aria-label="三算法竞速对比"
+            title="依次用 BFS / A* / IDA* 跑同一道题，对比访问节点数与耗时"
           >
-            {racing ? '竞速中…' : '竞速全部算法'}
+            {racing ? '竞速中…' : '三算法竞速对比'}
           </button>
         </div>
       </div>
@@ -190,7 +256,13 @@ export default function Observatory() {
       )}
 
       <div className="observatory__grid">
-        <SearchTree tree={treeRef.current} selectedKey={selectedKey} onSelect={setSelectedKey} />
+        {/* version 必须传：树是原地更新的 Map，仅靠引用变化无法触发布局重算 */}
+        <SearchTree
+          tree={treeRef.current}
+          version={treeVersion}
+          selectedKey={selectedKey}
+          onSelect={setSelectedKey}
+        />
         <div className="observatory__side">
           <NodeInspector node={selectedNode} />
           <SearchTimeline points={timelineRef.current} />

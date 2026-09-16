@@ -150,7 +150,13 @@ export function solveAStar(problem: SolveProblem, options: SolveOptions = {}): S
 
       if (isSolved(next, puzzle)) {
         const moves = reconstructMoves(parents, nextKey);
-        emit?.({ type: 'goal_found', stateKey: nextKey, depth: moves.length });
+        // 带上父节点：观测台要能高亮「解路径」（理由同 BFS）
+        emit?.({
+          type: 'goal_found',
+          stateKey: nextKey,
+          parentKey: node.key,
+          depth: moves.length,
+        });
         reportProgress(nextG);
         return finish({
           solved: true,

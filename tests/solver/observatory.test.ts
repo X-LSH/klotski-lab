@@ -12,7 +12,9 @@ import {
 } from '../../src/observatory/tree';
 import { raceAlgorithms } from '../../src/observatory/race';
 import { createInitialState } from '../../src/core/state';
+import { CLASSIC_PUZZLE } from '../../src/core/presets';
 import { tinyPuzzle } from '../core/helpers';
+import { LEVELS } from '../../src/generator/presets';
 
 function makeProblem(): SolveProblem {
   const puzzle = tinyPuzzle();
@@ -112,12 +114,67 @@ describe('搜索树构建', () => {
     expect(path.has(tree.rootKey as string)).toBe(true);
   });
 
-  it('达到可视化上限后截断且不影响事件继续到来', () => {
+  it('达到可视化上限后截断，但目标节点仍会被挂上', () => {
     const events = collectEvents(makeProblem(), solveBfs);
     const tree = createSearchTree();
     for (const e of events) applySearchEvent(tree, e, 2);
     expect(tree.truncated).toBe(true);
-    expect(tree.nodes.size).toBeLessThanOrEqual(2);
+    // 目标节点允许突破上限：它是这一页最该看到的信息，
+    // 而大谜题的目标必然落在上限之外（经典横刀立马最优 116 步，前 800 个局面只覆盖浅层）
+    const goal = [...tree.nodes.values()].find((n) => n.isGoal);
+    expect(goal).toBeTruthy();
+    expect(tree.nodes.size).toBeLessThanOrEqual(3);
+  });
+
+  it('目标节点带父节点信息，便于回溯解路径', () => {
+    const events = collectEvents(makeProblem(), solveBfs);
+    const goalEvent = events.find((e) => e.type === 'goal_found');
+    expect(goalEvent).toBeTruthy();
+    // 事件必须带 parentKey，否则目标落在上限之外时无法挂到树上
+    expect(goalEvent && 'parentKey' in goalEvent ? goalEvent.parentKey : undefined).toBeTruthy();
+  });
+
+  it('中等谜题：搜索树完整，解路径可从目标回溯到起点', () => {
+    // 观测台默认用这类规模的谜题：800 个局面足够装下整个搜索过程，
+    // 因此「搜索形状」与「解路径」都能完整看到 —— 这是这一页的教学价值所在。
+    const level = LEVELS.find((l) => l.id === 'warmup');
+    expect(level).toBeDefined();
+    const problem = {
+      puzzle: level!.puzzle,
+      initialState: createInitialState(level!.puzzle),
+    };
+    const events: SearchEvent[] = [];
+    solveBfs(problem, { onEvent: (e) => events.push(e) });
+
+    const tree = createSearchTree();
+    for (const e of events) applySearchEvent(tree, e, 800);
+
+    expect(tree.truncated).toBe(false);
+    const goal = [...tree.nodes.values()].find((n) => n.isGoal);
+    expect(goal).toBeTruthy();
+    // 路径应当一路回到起点
+    const path = solutionPathKeys(tree);
+    expect(path.has(tree.rootKey as string)).toBe(true);
+    expect(path.size).toBe((goal?.depth ?? 0) + 1);
+  });
+
+  it('经典谜题（最优 116 步）：树被截断，但目标节点仍会挂上', () => {
+    // 已知限制（界面已如实说明）：经典谜题的解在第 116 层，
+    // 前 800 个局面只覆盖最浅几层，因此解路径的中间节点看不到。
+    // 但「算法最后找到了什么」必须可见 —— 否则界面上永远没有结果。
+    const problem = { puzzle: CLASSIC_PUZZLE, initialState: createInitialState(CLASSIC_PUZZLE) };
+    const events: SearchEvent[] = [];
+    solveBfs(problem, { onEvent: (e) => events.push(e) });
+
+    const tree = createSearchTree();
+    for (const e of events) applySearchEvent(tree, e, 800);
+
+    expect(tree.truncated).toBe(true);
+    const goal = [...tree.nodes.values()].find((n) => n.isGoal);
+    expect(goal).toBeTruthy();
+    expect(goal?.depth).toBe(116);
+    // 上层节点确实不在树里（这是截断的必然结果，不是缺陷）
+    expect(solutionPathKeys(tree).size).toBe(1);
   });
 
   it('layerNodes 按深度分层', () => {

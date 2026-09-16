@@ -1,6 +1,6 @@
 /**
- * 算法对比：结果表格 + SVG 柱状图（访问节点对比、执行时间对比）。
- * 内存占用无法准确测量，按规范不展示，不伪造。
+ * 算法竞速对比：同一道题依次跑全部算法，对比它们「找解的过程有多费劲」。
+ * 数据全部来自真实求解，不做估算；内存占用无法准确测量，因此不展示。
  */
 import { ALGORITHM_LABELS } from '../../solver/registry';
 import { END_REASON_LABELS } from './labels';
@@ -12,6 +12,19 @@ interface AlgorithmComparisonProps {
 }
 
 const BAR_MAX_W = 220;
+
+/** 把表格里的数字变成一句结论 —— 只给三行数据，用户还得自己对比，价值打折 */
+function buildSummary(entries: RaceEntry[]): string | null {
+  const solved = entries.filter((e) => e.result.solved);
+  if (solved.length < 2) return null;
+  const least = solved.reduce((a, b) => (b.result.visitedNodes < a.result.visitedNodes ? b : a));
+  const most = solved.reduce((a, b) => (b.result.visitedNodes > a.result.visitedNodes ? b : a));
+  if (most.result.visitedNodes === 0) return null;
+  const ratio = Math.round((least.result.visitedNodes / most.result.visitedNodes) * 100);
+  const sameDepth = solved.every((e) => e.result.depth === solved[0].result.depth);
+  const head = `${ALGORITHM_LABELS[least.algorithm]} 访问的局面最少：${least.result.visitedNodes} 个，只有 ${ALGORITHM_LABELS[most.algorithm]}（${most.result.visitedNodes} 个）的 ${ratio}%`;
+  return sameDepth ? `${head}；两者都找到了 ${solved[0].result.depth} 步的最优解。` : `${head}。`;
+}
 
 function BarChart({ title, values }: { title: string; values: { label: string; value: number }[] }) {
   const max = Math.max(...values.map((v) => v.value), 1);
@@ -41,18 +54,28 @@ function BarChart({ title, values }: { title: string; values: { label: string; v
 export default function AlgorithmComparison({ entries, running }: AlgorithmComparisonProps) {
   if (entries.length === 0) {
     return (
-      <div className="algorithm-comparison" aria-label="算法对比">
-        <h3>算法竞速</h3>
+      <div className="algorithm-comparison" aria-label="算法竞速对比">
+        <h3>算法竞速对比</h3>
         <p className="algorithm-comparison__empty">
-          {running ? '竞速进行中…' : '点击「竞速全部算法」同时执行 BFS / A* / IDA* 并对比。'}
+          {running
+            ? '竞速进行中…'
+            : '点「三算法竞速对比」：用同一道题依次跑 BFS / A* / IDA*，对比它们各自访问了多少局面、花了多长时间。'}
+        </p>
+        <p className="algorithm-comparison__empty algorithm-comparison__empty--hint">
+          三种算法的差异只有在同一道题上才能看出来 —— 这也是这一页存在的理由。
         </p>
       </div>
     );
   }
 
+  const summary = running ? null : buildSummary(entries);
+
   return (
-    <div className="algorithm-comparison" aria-label="算法对比">
-      <h3>算法竞速{running ? '（进行中…）' : ''}</h3>
+    <div className="algorithm-comparison" aria-label="算法竞速对比">
+      <h3>算法竞速对比{running ? '（进行中…）' : ''}</h3>
+      <p className="algorithm-comparison__lead">
+        「访问」是算法检查过的局面总数，越少说明它越「有的放矢」；「深度」是它找到的解的步数。
+      </p>
       <table className="solver-panel__table">
         <thead>
           <tr>
@@ -77,6 +100,7 @@ export default function AlgorithmComparison({ entries, running }: AlgorithmCompa
           ))}
         </tbody>
       </table>
+      {summary && <p className="algorithm-comparison__summary">{summary}</p>}
       <div className="algorithm-comparison__charts">
         <BarChart
           title="访问节点对比"

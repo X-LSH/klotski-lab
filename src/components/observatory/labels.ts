@@ -4,6 +4,7 @@
  * 避免在两处各维护一份映射。
  */
 import type { SolveEndReason } from '../../solver/result';
+import type { AlgorithmName } from '../../solver/registry';
 
 export const END_REASON_LABELS: Record<SolveEndReason, string> = {
   solved: '已解出',
@@ -13,6 +14,25 @@ export const END_REASON_LABELS: Record<SolveEndReason, string> = {
   timeout: '超时',
   cancelled: '已取消',
 };
+
+/**
+ * 三种算法的一句话特点。
+ * 观测台的核心是「比较」，但只给三个按钮名（BFS / A* / IDA*）等于什么都没说 ——
+ * 用户不知道它们会有什么不同的表现，也就不知道自己在看什么。
+ */
+export const ALGORITHM_HINTS: Record<AlgorithmName, string> = {
+  bfs: '按层扩展，先找到的解一定最短；访问的状态最多，速度最慢。',
+  astar: '用启发式估计「离解还有多远」，优先探索有希望的方向，通常最快。',
+  idastar: '反复加深深度上限来省内存；不评估状态数，在经典谜题上可能长时间没有结果。',
+};
+
+/** 搜索树图例：圆点的样式各自代表什么 */
+export const TREE_LEGEND: { kind: 'root' | 'node' | 'path' | 'goal'; text: string }[] = [
+  { kind: 'root', text: '起始局面' },
+  { kind: 'node', text: '搜索过的局面' },
+  { kind: 'path', text: '最优解路径' },
+  { kind: 'goal', text: '目标局面' },
+];
 
 /**
  * 未解出时给用户的完整解释。

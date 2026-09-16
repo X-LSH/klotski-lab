@@ -63,16 +63,18 @@ export function applySearchEvent(tree: SearchTree, event: SearchEvent, maxNodes:
       const node = tree.nodes.get(event.stateKey);
       if (node) {
         node.isGoal = true;
-      } else if (tree.nodes.size < maxNodes) {
-        // 目标节点可能在节流后才首次出现：补挂到树上
-        tree.nodes.set(event.stateKey, {
-          key: event.stateKey,
-          parentKey: null,
-          move: null,
-          depth: event.depth ?? 0,
-          isGoal: true,
-        });
+        return true;
       }
+      // 目标节点必须无条件挂到树上。
+      // 它常常落在可视化上限之外（谜题越大越必然：经典横刀立马最优 116 步，
+      // 前 800 个节点只覆盖最浅的几层），而「算法最后找到了什么」是这一页最该看到的信息。
+      tree.nodes.set(event.stateKey, {
+        key: event.stateKey,
+        parentKey: event.parentKey ?? null,
+        move: event.move ?? null,
+        depth: event.depth ?? 0,
+        isGoal: true,
+      });
       return true;
     }
     default:

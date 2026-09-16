@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import type { PuzzleDefinition } from '../types';
 import { getDailyPuzzle } from '../generator/daily';
+import { LEVELS } from '../generator/presets';
+import { DIFFICULTY_LABELS } from '../components/copy';
 
 // 首页：产品定位（游玩 / 求解 / 创建 / 分析）+ 三个快捷入口。
 export default function Home() {
@@ -58,6 +60,33 @@ export default function Home() {
           自定义谜题
         </Link>
       </div>
+
+      {/* 关卡一览：一行一关，点行即开局 —— 把「选谜题」从导航里挪回首页，
+          也让首屏具备工具站该有的信息密度。 */}
+      <section>
+        <h2 className="home__section-title">内置关卡</h2>
+        <div className="home__levels" role="list">
+          {LEVELS.map((level) => (
+            <button
+              key={level.id}
+              type="button"
+              role="listitem"
+              className="home__level"
+              aria-label={`开始 ${level.name}`}
+              onClick={() => playPuzzle(level.puzzle)}
+            >
+              <span className="home__level-name">{level.name}</span>
+              <span className="home__level-desc">{level.description}</span>
+              <span className="home__level-meta">
+                <span className="home__level-tier">{DIFFICULTY_LABELS[level.difficulty]}</span>
+                {level.optimalDepth !== undefined && (
+                  <span className="home__level-optimal">最优 {level.optimalDepth} 步</span>
+                )}
+              </span>
+            </button>
+          ))}
+        </div>
+      </section>
     </main>
   );
 }

@@ -10,14 +10,7 @@ import type { PuzzleDefinition } from '../types';
 import { LEVELS } from '../generator/presets';
 import { getDailyPuzzle, DAILY_DEPTH } from '../generator/daily';
 import { loadMyPuzzles } from '../storage/local-storage';
-import type { DifficultyTier } from '../generator/difficulty';
-
-const DIFFICULTY_LABELS: Record<DifficultyTier, string> = {
-  easy: '入门',
-  normal: '进阶',
-  hard: '困难',
-  expert: '专家',
-};
+import { DIFFICULTY_LABELS } from './copy';
 
 interface PuzzleSwitcherProps {
   /** 当前谜题名（用于在列表中回显正在玩的谜题） */

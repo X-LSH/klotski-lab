@@ -1,24 +1,73 @@
-/* 全局样式：深色 / 技术感 / 极简（阶段 3 版本，第 9 阶段统一打磨） */
+/* ==========================================================================
+   Klotski Lab · 设计令牌
+   规格：黑色中性底 + 暖白文字 + 单一低饱和铜色强调
+   原则：色相只由铜色承担；几何克制（小圆角 / 1px 线，不靠投影）；动效短促无过冲。
+   ========================================================================== */
 :root {
-  --bg: #0b1020;
-  --bg-panel: rgba(255, 255, 255, 0.06);
-  --bg-panel-border: rgba(255, 255, 255, 0.12);
-  --fg: #e8ecf8;
-  --fg-dim: rgba(232, 236, 248, 0.65);
-  --accent: #4a8fe0;
-  --accent-strong: #2f6fc4;
-  --goal: #e0b34a;
-  --danger: #d06565;
+  /* ── 中性黑基层 ──
+     纯中性灰阶（R=G=B），不掺任何色相，把全部色彩信息让给唯一的铜色强调。
+     这是「专业工具感」的基础：底不能有情绪。 */
+  --bg: #0b0b0c;
+  --bg-panel: #131315;
+  --bg-surface: #18181b;
+  --bg-raised: #1e1e22;
+  --line: #26262b;
+  --line-strong: #3a3a43;
 
-  /* ── 弹簧动效令牌 ─────────────────────────────────────────────
-     阻尼比 ≈ 1.0（临界阻尼，不过冲）、响应 ≈ 0.26s。
-     参考 Apple 官方「移动 / 画中画」参数（damping 1.0 / response 0.4s）；
-     落子是离散且可预期的动作，收紧响应时间以保持跟手，同时保留物理减速感。 */
-  --spring-move-ms: 260ms;
-  --spring-move: cubic-bezier(0.22, 1, 0.36, 1);
-  /* 回弹：末段常有少量过冲，对应 Apple 的「橡胶边界」而非硬截断 */
-  --spring-settle-ms: 320ms;
-  --spring-settle: cubic-bezier(0.3, 1.36, 0.55, 1);
+  /* ── 暖白文字 ──
+     R>G>B 的暖调白（不是偏蓝的冷白）：在纯黑底上不刺目，长时间阅读更稳。 */
+  --fg: #e9e5de;
+  --fg-dim: #a7a29a;
+  --fg-faint: #6d6963;
+
+  /* ── 单一低饱和铜色强调 ──
+     hsl(27 45% 45%) 附近，饱和度刻意压低 —— 金属铜的高饱和会把画面拉向装饰性。
+     全站只有这一个色相：可交互、当前焦点、目标区域全部由它承担。 */
+  --copper: #a8703f;
+  --copper-bright: #c08753;
+  --copper-deep: #7c5330;
+  --copper-a08: rgba(168, 112, 63, 0.08);
+  --copper-a16: rgba(168, 112, 63, 0.16);
+  --copper-a32: rgba(168, 112, 63, 0.32);
+
+  /* 状态色同样降饱和，服从整体中性调性 */
+  --danger: #a0564c;
+  --danger-a12: rgba(160, 86, 76, 0.12);
+  --ok: #6f8f6a;
+  --ok-a16: rgba(111, 143, 106, 0.16);
+
+  /* 兼容既有变量名（避免大面积重命名带来的风险） */
+  --bg-panel-border: var(--line);
+  --accent: var(--copper);
+  --accent-strong: var(--copper-deep);
+  --goal: var(--copper);
+
+  /* 页面容器宽度：全站同一栅格，切换页面时内容左右边界不跳动 */
+  --page-max: 1120px;
+
+  /* ── 精密排版阶梯 ── */
+  --fs-2xs: 11px;
+  --fs-xs: 12px;
+  --fs-sm: 13px;
+  --fs-md: 14px;
+  --fs-lg: 16px;
+  --fs-xl: 20px;
+  --fs-2xl: 26px;
+  --track-label: 0.08em;
+  --mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+
+  /* ── 克制几何 ── 小圆角 + 1px 线替代重投影 */
+  --r-sm: 3px;
+  --r-md: 5px;
+  --r-lg: 8px;
+
+  /* ── 克制动效 ── 短时长 / 标准减速曲线 / 无过冲 */
+  --dur-fast: 110ms;
+  --dur-base: 170ms;
+  --ease-out: cubic-bezier(0.2, 0, 0.2, 1);
+  /* 兼容旧令牌（棋子落子过渡仍在使用） */
+  --spring-move-ms: var(--dur-base);
+  --spring-move: var(--ease-out);
 }
 
 * {
@@ -35,80 +84,105 @@ body {
     'PingFang SC',
     'Microsoft YaHei',
     sans-serif;
+  font-size: var(--fs-md);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 
-  /* ── 背景：单一光源方向的「深色剧场」────────────────────────────
-     纯色平板会让内容浮在虚空里。这里用五层叠加建立空间：
-     ① 顶部聚光    → 明确光源在上方
-     ② 实验室网格  → 极淡的技术感底纹，提供尺度参照
-     ③ 底部反光    → 与顶部呼应的地面线，暗示台面
-     ④ 四周暗角    → 把视线收拢到中间的内容区
-     全部由 CSS 渐变构成，不引入任何图片资源。
-
-     注意：暗角与聚光都刻意压低振幅、拉长过渡区间 —— 大范围深色渐变在 8 位色深下
-     很容易出现可见的色阶断层（横向条带），振幅越大越明显。 */
+  /* 中性底：只留一层极淡的中性网格提供工程尺度感。
+     没有聚光、没有暗角、没有色相 —— 工具的底不该抢内容。 */
   background-color: var(--bg);
   background-image:
-    radial-gradient(1240px 660px at 50% -10%, rgba(74, 143, 224, 0.15), transparent 70%),
-    linear-gradient(rgba(255, 255, 255, 0.014) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.014) 1px, transparent 1px),
-    radial-gradient(1000px 460px at 50% 108%, rgba(224, 179, 74, 0.04), transparent 80%),
-    radial-gradient(1700px 1150px at 50% 46%, transparent 46%, rgba(0, 0, 0, 0.34) 100%);
+    linear-gradient(rgba(255, 255, 255, 0.011) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.011) 1px, transparent 1px);
   background-size:
-    100% 100%,
-    54px 54px,
-    54px 54px,
-    100% 100%,
-    100% 100%;
-  background-repeat: no-repeat, repeat, repeat, no-repeat, no-repeat;
+    56px 56px,
+    56px 56px;
   background-attachment: fixed;
 }
 
 button {
   font: inherit;
-  padding: 8px 16px;
-  border: 1px solid var(--bg-panel-border);
-  border-radius: 8px;
-  background: var(--bg-panel);
+  font-size: var(--fs-sm);
+  padding: 6px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  background: var(--bg-raised);
   color: var(--fg);
   cursor: pointer;
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
 }
 
 button:hover:not(:disabled) {
-  border-color: var(--accent);
+  background: var(--bg-surface);
+  border-color: var(--copper-deep);
+}
+
+button:active:not(:disabled) {
+  background: var(--bg-panel);
 }
 
 button:disabled {
-  opacity: 0.45;
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
 button:focus-visible,
-a:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+a:focus-visible,
+select:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--copper-bright);
+  outline-offset: 1px;
+}
+
+input,
+select,
+textarea {
+  font: inherit;
+  font-size: var(--fs-sm);
+  background: var(--bg-surface);
+  color: var(--fg);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+}
+
+/* 数字统一等宽，统计与表格才不会跳动 */
+[aria-label='步数统计'],
+[aria-label='求解统计'],
+[aria-label='算法对比'],
+.move-counter,
+.solver-panel__table {
+  font-variant-numeric: tabular-nums;
 }
 
 /* ===== 顶部导航 ===== */
-/* 半透明毛玻璃 + 吸顶：内容滚动时从材质下穿过，强化层级深度。
-   backdrop-filter 不支持的环境降级为不透明底色，不影响可用性。 */
+/* 实色吸顶 + 1px 底边。工具类界面不需要毛玻璃这类装饰材质，
+   稳定的实色底反而让内容层级更干净。 */
 .app-header {
   position: sticky;
   top: 0;
   z-index: 20;
   display: flex;
   align-items: center;
-  gap: 24px;
-  padding: 12px 20px;
-  background: rgba(11, 16, 32, 0.72);
-  -webkit-backdrop-filter: blur(20px) saturate(160%);
-  backdrop-filter: blur(20px) saturate(160%);
-  border-bottom: 1px solid var(--bg-panel-border);
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.05) inset;
+  gap: 14px;
+  height: 44px;
+  padding-block: 0;
+  /* 与页面容器共用同一栅格：导航文字与内容左边界严格对齐 */
+  padding-inline: max(16px, calc((100% - var(--page-max)) / 2));
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--line);
 }
 
 .app-header__brand {
-  font-weight: 700;
-  font-size: 18px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: var(--fs-md);
+  letter-spacing: 0.01em;
   color: var(--fg);
   text-decoration: none;
   /* 窄屏下不被压缩成多行 */
@@ -116,59 +190,213 @@ a:focus-visible {
   white-space: nowrap;
 }
 
+/* 品牌前的小铜块：全站唯一的品牌标记，克制到一个 3×12 的色块 */
+.app-header__brand::before {
+  content: '';
+  width: 3px;
+  height: 12px;
+  border-radius: 1px;
+  background: var(--copper);
+}
+
 .app-header__nav {
   display: flex;
-  gap: 16px;
+  gap: 2px;
   /* 空间不足时整体换行，而不是把每个链接挤成竖排单字 */
   flex-wrap: wrap;
-  row-gap: 8px;
   min-width: 0;
 }
 
 .app-header__nav a {
+  padding: 5px 10px;
+  border-radius: var(--r-sm);
   color: var(--fg-dim);
+  font-size: var(--fs-sm);
   text-decoration: none;
   white-space: nowrap;
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
 }
 
+.app-header__nav a:hover {
+  background: var(--bg-raised);
+  color: var(--fg);
+}
+
+/* 当前页：铜色文字 + 极淡铜底，不用填充色块抢占注意力 */
 .app-header__nav a.active {
-  color: var(--accent);
+  color: var(--copper-bright);
+  background: var(--copper-a08);
 }
 
 /* ===== 首页 ===== */
+/* 左对齐文档流 + 紧凑间距。居中大留白是落地页的语法，
+   工具站应该一屏给出尽可能多的信息。 */
 .home {
-  min-height: calc(100vh - 60px);
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: 36px 20px 56px;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
+  gap: 26px;
 }
 
 .home__title {
-  font-size: 48px;
   margin: 0;
+  font-size: var(--fs-2xl);
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 .home__subtitle {
+  margin: 6px 0 0;
+  color: var(--fg-dim);
+  font-size: var(--fs-sm);
+}
+
+/* 功能一览：用 1px 分隔线组织成一张表，而不是浮起的卡片。
+   gap + 背景色的做法让分隔线自动生成，边缘不会出现双线。 */
+.home__features {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(196px, 1fr));
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+}
+
+.home__feature {
+  padding: 13px 15px;
+  background: var(--bg-panel);
+}
+
+.home__feature h3 {
+  margin: 0 0 5px;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: var(--track-label);
+  color: var(--copper);
+}
+
+.home__feature p {
   margin: 0;
+  font-size: var(--fs-xs);
+  line-height: 1.6;
   color: var(--fg-dim);
 }
 
-.home__start {
-  padding: 10px 32px;
-  border-radius: 8px;
-  background: var(--accent);
-  color: #fff;
+.home__entries {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.home__entry {
+  padding: 7px 18px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--line-strong);
+  background: var(--bg-raised);
+  color: var(--fg);
+  font-size: var(--fs-sm);
   text-decoration: none;
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out);
+}
+
+.home__entry:hover:not(:disabled) {
+  background: var(--bg-surface);
+  border-color: var(--copper-deep);
+}
+
+/* 主行动：铜底 + 近黑文字。在铜色上深色文字比暖白对比更高（约 8:1 vs 4.3:1） */
+.home__entry--primary {
+  background: var(--copper);
+  border-color: var(--copper);
+  color: #14100c;
+  font-weight: 600;
+}
+
+.home__entry--primary:hover:not(:disabled) {
+  background: var(--copper-bright);
+  border-color: var(--copper-bright);
+}
+
+/* 分区标题：小号大写字距标签，工具站的层级靠字距与颜色而不是字号 */
+.home__section-title {
+  margin: 0 0 8px;
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  letter-spacing: var(--track-label);
+  color: var(--fg-faint);
+}
+
+/* 关卡一览：1px 分隔线组成的一行一关的紧凑表 */
+.home__levels {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+}
+
+.home__level {
+  display: grid;
+  grid-template-columns: 132px 1fr auto;
+  gap: 14px;
+  align-items: baseline;
+  width: 100%;
+  padding: 9px 14px;
+  border: 0;
+  border-radius: 0;
+  background: var(--bg-panel);
+  text-align: left;
+}
+
+.home__level:hover:not(:disabled) {
+  background: var(--bg-surface);
+}
+
+.home__level-name {
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  color: var(--fg);
+}
+
+.home__level-desc {
+  font-size: var(--fs-xs);
+  color: var(--fg-dim);
+}
+
+/* 关卡行右侧：难度用三级灰、最优步数用铜色。
+   信息层级与强调色分开 —— 不是所有信息都值得染色。 */
+.home__level-meta {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.home__level-tier {
+  color: var(--fg-faint);
+}
+
+.home__level-optimal {
+  color: var(--copper);
 }
 
 /* ===== 游戏页 ===== */
 .play {
   display: flex;
-  gap: 24px;
-  padding: 24px;
-  max-width: 1100px;
+  gap: 16px;
+  padding: 16px;
+  max-width: var(--page-max);
   margin: 0 auto;
   align-items: flex-start;
 }
@@ -176,59 +404,42 @@ a:focus-visible {
 .play__board-area {
   flex: 1 1 420px;
   min-width: 0;
+  /* 一屏内看完棋盘：4:5 比例下由可用高度反推最大宽度。
+     用 max-width 而不是 max-height —— 后者会压缩高度、破坏 aspect-ratio。 */
+  max-width: calc((100vh - 140px) * 0.8);
 }
 
 .play__side {
-  flex: 0 0 300px;
+  flex: 0 0 288px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 
 .play__puzzle-name {
   margin: 0;
-  font-size: 18px;
+  font-size: var(--fs-lg);
+  font-weight: 600;
 }
 
 .play__unsolvable {
+  margin: 0;
+  font-size: var(--fs-xs);
+  line-height: 1.6;
   color: var(--danger);
 }
 
-/* ===== 棋盘：一块被顶光照亮的台面 ===== */
+/* ===== 棋盘：精密网格 ===== */
+/* 不做「受光台面」—— 那是展示性语法。工具风用 1px 边框 + 极浅投影，
+   让棋盘读起来像一块绘图纸。 */
 .board {
   position: relative;
   width: 100%;
-  border-radius: 18px;
-  border: 1px solid var(--bg-panel-border);
-  /* 自上而下的受光渐变：顶部亮、底部沉，让棋盘“立”在台面上，而不是浮在纯色底上 */
-  background:
-    linear-gradient(
-      180deg,
-      rgba(255, 255, 255, 0.075) 0%,
-      rgba(255, 255, 255, 0.022) 34%,
-      rgba(0, 0, 0, 0.28) 100%
-    ),
-    rgba(13, 19, 36, 0.92);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.13),
-    /* 顶部受光亮边 */
-    inset 0 -1px 0 rgba(0, 0, 0, 0.5),
-    /* 底部暗边 */
-    0 34px 64px -26px rgba(0, 0, 0, 0.88),
-    /* 落在地面的长投影 */
-    0 4px 12px rgba(0, 0, 0, 0.45);
+  border-radius: var(--r-md);
+  border: 1px solid var(--line-strong);
+  background: var(--bg-panel);
   overflow: hidden;
   user-select: none;
-}
-
-/* 台面内部聚光：全站光源方向统一来自上方 */
-.board::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  pointer-events: none;
-  background: radial-gradient(115% 55% at 50% -10%, rgba(255, 255, 255, 0.08), transparent 62%);
 }
 
 .board__grid {
@@ -238,12 +449,13 @@ a:focus-visible {
   grid-template-columns: repeat(4, 1fr);
 }
 
-/* 网格线压到很淡：它只提供尺度参照，不该与棋子争夺注意力 */
+/* 网格线压到几乎看不见：棋子边框已经勾勒出格子边界，
+   网格只需给「空位」一点提示，双层线会显得杂乱 */
 .board__cell {
-  border: 1px solid rgba(255, 255, 255, 0.038);
+  border: 1px solid rgba(255, 255, 255, 0.022);
 }
 
-/* 出口 = 焦点色（聚光金）：与「可交互色（电光蓝）」形成唯一的一组锚点 */
+/* 出口：铜色虚线框是「目标」的唯一表达 */
 .board__exit {
   position: absolute;
   z-index: 1;
@@ -251,26 +463,20 @@ a:focus-visible {
   align-items: center;
   justify-content: center;
   margin: 2px;
-  border-radius: 12px;
-  border: 1px dashed rgba(224, 179, 74, 0.6);
-  /* 底色要略深于台面，把穿过这里的网格线压掉，否则会出现突兀的十字 */
-  background:
-    radial-gradient(80% 110% at 50% 100%, rgba(224, 179, 74, 0.17), transparent 72%),
-    rgba(10, 14, 27, 0.9);
-  box-shadow: inset 0 0 22px -8px rgba(224, 179, 74, 0.75);
-  color: var(--goal);
-  font-size: 13px;
-  letter-spacing: 0.14em;
-  text-shadow: 0 0 12px rgba(224, 179, 74, 0.6);
+  border-radius: var(--r-sm);
+  border: 1px dashed var(--copper);
+  background: var(--copper-a08);
+  color: var(--copper-bright);
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  letter-spacing: var(--track-label);
 }
 
 /* ===== 棋子 =====
-   设计要点：
-   - 焦点唯一 —— 只有目标棋子（曹操）拿到高饱和电光蓝与辉光，其余棋子降饱和成
-     冷蓝灰。到处高亮等于没有焦点；
-   - 体积感来自「顶部受光 + 底部暗边 + 接触阴影 + 悬空投影」四层叠加，
-     而不是靠更大的模糊；
-   - 用较大圆角近似连续曲率，避免小圆角带来的廉价感。 */
+   石墨材质 + 铜色焦点。结构一律由「1px 边框 + 面层级」表达，
+   不使用辉光、渐变受光与重投影 —— 那些是展示性语法，不是工具语法。
+   - 普通棋子：中性石墨面，安静但有明确边界；
+   - 目标棋子：铜色描边 + 极淡铜底，是棋盘上唯一的暖色。 */
 .piece {
   position: absolute;
   z-index: 2;
@@ -278,110 +484,89 @@ a:focus-visible {
   align-items: center;
   justify-content: center;
   /* 不留外边距：绝对定位元素的 margin 只会把棋子整体推偏一格，
-     并不能产生间距（相邻棋子仍然边贴边）。真正的留白由下面的 --piece-scale 内缩得到，
-     因为它是围绕元素中心缩放的，格位对齐关系不受影响。 */
+     并不能产生间距（相邻棋子仍然边贴边）。真正的留白由 --piece-scale
+     围绕中心内缩得到，格位对齐关系不受影响。 */
   margin: 0;
-  border-radius: 13px;
-  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: var(--r-sm);
+  border: 1px solid var(--line-strong);
+  /* 比棋盘亮一档，棋子才「浮」得出来；纯工具风不需要投影 */
+  background: #232329;
   color: var(--fg);
-  font-weight: 600;
+  font-weight: 500;
   touch-action: none;
-  /* 内缩比例：0.94 让相邻棋子之间出现真实空隙，画面从「一整块板」变成「一枚枚棋子」 */
-  --piece-scale: 0.94;
-  /* 投影放在自定义属性里：各状态只改这一个变量，
-     编辑器的高亮描边（.piece--selected / .piece--overlap）也能与之叠加而不互相覆盖 */
-  --piece-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.21), inset 0 -1px 0 rgba(0, 0, 0, 0.38),
-    0 2px 3px rgba(0, 0, 0, 0.4), 0 10px 20px -10px rgba(0, 0, 0, 0.7);
-  background:
-    linear-gradient(
-      180deg,
-      rgba(255, 255, 255, 0.17) 0%,
-      rgba(255, 255, 255, 0.045) 20%,
-      rgba(255, 255, 255, 0) 46%
-    ),
-    linear-gradient(168deg, #344f7e 0%, #243a60 56%, #1a2a46 100%);
-  box-shadow: var(--piece-shadow);
+  /* 内缩比例：0.96 留出刚好可辨的缝，再大就变成「一格一个盒子」 */
+  --piece-scale: 0.96;
+  /* 作为尺寸容器，让标签字号能跟随棋子大小（见 .piece__label） */
+  container-type: size;
 
   /* 位置完全由 transform 表达（见 Piece.tsx），因此只需过渡这一个属性。
-     释放瞬间不带 --dragging，浏览器便从「手指离开时的真实位置」开始做弹簧收敛：
-     位移不足一格时自然呈现橡胶回弹，位移到位时几乎无感地贴入格子。
+     释放瞬间不带 --dragging，浏览器便从「手指离开时的真实位置」开始收敛：
+     位移不足一格时自然回弹，位移到位时几乎无感地贴入格子。
      回放 / 撤销 / 重做 的逐格移动也因此变成平滑滑动，而不是瞬移。 */
   transition:
-    transform var(--spring-move-ms) var(--spring-move),
-    filter 170ms ease,
-    box-shadow 170ms ease;
+    transform var(--dur-base) var(--ease-out),
+    background var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out);
   will-change: transform;
 }
 
-/* 目标棋子 = 全盘唯一焦点 */
+/* 目标棋子 = 全盘唯一的暖色。
+   焦点靠「铜色描边 + 微弱暖底」表达，不用大面积铜色块 ——
+   大色块在深底上会显浑浊，也会让出口的铜色失去区分度。 */
 .piece--goal {
-  border-color: rgba(255, 255, 255, 0.26);
-  color: #fff;
-  --piece-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.42), inset 0 -1px 0 rgba(0, 0, 0, 0.34),
-    0 2px 4px rgba(0, 0, 0, 0.45), 0 14px 30px -12px rgba(74, 143, 224, 0.85),
-    0 0 0 1px rgba(74, 143, 224, 0.4);
-  background:
-    linear-gradient(
-      180deg,
-      rgba(255, 255, 255, 0.26) 0%,
-      rgba(255, 255, 255, 0.06) 22%,
-      rgba(255, 255, 255, 0) 50%
-    ),
-    linear-gradient(168deg, #5fa4ee 0%, #3672c2 52%, #1f4884 100%);
+  border-color: var(--copper);
+  /* 只留一丝暖调：2×2 目标棋子的面积很大，暖底一重就会糊成一块棕色板 */
+  background: #2b2724;
 }
 
 .piece--interactive {
   cursor: grab;
 }
 
-/* 悬停：轻微提亮，暗示「这是可以动的」 */
+/* 悬停：只改边框与面，不用亮度滤镜（滤镜会破坏中性调性） */
 .piece--interactive:hover {
-  filter: brightness(1.09);
+  background: var(--bg-surface);
+  border-color: var(--copper-deep);
 }
 
-/* 按下即反馈（不是抬起才响应）：光从表面退开、接触阴影收紧，读作「被压低」 */
+/* 按下即反馈：面压暗一档 + 轻微内缩 */
 .piece--interactive:active {
   cursor: grabbing;
-  filter: brightness(0.92);
+  background: var(--bg-panel);
   --piece-scale: 0.9;
-  --piece-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.12), inset 0 3px 7px rgba(0, 0, 0, 0.45),
-    0 1px 2px rgba(0, 0, 0, 0.5);
   transition:
-    transform 120ms var(--spring-move),
-    filter 90ms ease,
-    box-shadow 90ms ease;
+    transform var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out);
 }
 
-/* 拖拽中：1:1 跟随手指，不做任何插值；略微放大并抬起投影，读作「被拎起来」 */
+/* 拖拽中：1:1 跟随（不做插值），用铜色描边 + 一层轻投影表示「离地」 */
 .piece--dragging {
   z-index: 10;
   cursor: grabbing;
   transition: none;
-  filter: brightness(1.07);
-  --piece-scale: 0.985;
-  --piece-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.28), 0 20px 36px -8px rgba(0, 0, 0, 0.78),
-    0 0 0 1px rgba(255, 255, 255, 0.07);
+  border-color: var(--copper);
+  background: var(--bg-surface);
+  --piece-scale: 0.98;
+  box-shadow: 0 6px 16px -6px rgba(0, 0, 0, 0.7);
 }
 
 .piece__label {
   pointer-events: none;
-  font-size: clamp(12px, 3.2vw, 19px);
-  font-weight: 600;
+  /* 精密排版：字号跟随棋子实际尺寸（容器查询单位），
+     小棋子不会溢出、大棋子不会显得空荡；上限压住，避免 2×2 棋子出现夸张大字。 */
+  font-size: clamp(11px, 9cqmin, 17px);
+  font-weight: 500;
   line-height: 1;
-  /* 光学字号：小字略加字距更清晰，并压一层暗影保证在材质上可读 */
-  letter-spacing: 0.06em;
-  color: rgba(232, 236, 248, 0.9);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  letter-spacing: 0.02em;
+  color: var(--fg);
 }
 
+/* 目标棋子面积大，标签允许更大一档，否则 2×2 中央会显得空 */
 .piece--goal .piece__label {
-  color: #fff;
-  letter-spacing: 0.08em;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+  font-size: clamp(13px, 7cqmin, 22px);
+  color: var(--copper-bright);
+  font-weight: 600;
 }
 
 /* ===== 侧边组件 ===== */
@@ -421,7 +606,7 @@ a:focus-visible {
   background: var(--bg-panel);
   color: var(--fg);
   border: 1px solid var(--bg-panel-border);
-  border-radius: 6px;
+  border-radius: var(--r-sm);
   padding: 4px 8px;
 }
 
@@ -429,7 +614,7 @@ a:focus-visible {
   display: flex;
   gap: 16px;
   padding: 12px;
-  border-radius: 10px;
+  border-radius: var(--r-md);
   background: var(--bg-panel);
   border: 1px solid var(--bg-panel-border);
 }
@@ -441,25 +626,25 @@ a:focus-visible {
 }
 
 .move-counter__label {
-  font-size: 12px;
+  font-size: var(--fs-xs);
   color: var(--fg-dim);
 }
 
 .move-counter__value {
-  font-size: 20px;
+  font-size: var(--fs-xl);
   font-variant-numeric: tabular-nums;
 }
 
 .solver-stats {
   padding: 12px;
-  border-radius: 10px;
+  border-radius: var(--r-md);
   background: var(--bg-panel);
   border: 1px solid var(--bg-panel-border);
 }
 
 .solver-stats h3 {
   margin: 0 0 8px;
-  font-size: 14px;
+  font-size: var(--fs-md);
 }
 
 .solver-stats dl,
@@ -492,7 +677,7 @@ a:focus-visible {
   flex-direction: column;
   gap: 12px;
   padding: 12px;
-  border-radius: 10px;
+  border-radius: var(--r-md);
   background: var(--bg-panel);
   border: 1px solid var(--bg-panel-border);
 }
@@ -509,14 +694,14 @@ a:focus-visible {
   align-items: center;
   gap: 6px;
   color: var(--fg-dim);
-  font-size: 14px;
+  font-size: var(--fs-md);
 }
 
 .solver-panel__field select {
   background: var(--bg);
   color: var(--fg);
   border: 1px solid var(--bg-panel-border);
-  border-radius: 6px;
+  border-radius: var(--r-sm);
   padding: 6px 8px;
 }
 
@@ -524,7 +709,7 @@ a:focus-visible {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   color: var(--fg-dim);
   font-variant-numeric: tabular-nums;
 }
@@ -552,7 +737,7 @@ a:focus-visible {
 .solver-panel__table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-variant-numeric: tabular-nums;
 }
 
@@ -574,9 +759,9 @@ a:focus-visible {
   padding: 8px 10px;
   border-left: 2px solid var(--goal);
   border-radius: 0 6px 6px 0;
-  background: rgba(224, 179, 74, 0.08);
+  background: var(--copper-a08);
   color: var(--fg-dim);
-  font-size: 12px;
+  font-size: var(--fs-xs);
   line-height: 1.6;
 }
 
@@ -592,9 +777,9 @@ a:focus-visible {
   margin: auto;
   width: min(90vw, 360px);
   height: fit-content;
-  padding: 24px;
-  border-radius: 16px;
-  background: rgba(16, 22, 42, 0.92);
+  padding: 16px;
+  border-radius: var(--r-lg);
+  background: var(--bg-panel);
   border: 1px solid var(--bg-panel-border);
   backdrop-filter: blur(12px);
   display: flex;
@@ -622,6 +807,8 @@ a:focus-visible {
     /* 列方向下 flex-basis 作用于高度，必须复位；宽度交回 flex 容器拉伸 */
     flex: 0 0 auto;
     width: 100%;
+    /* 竖屏下高度才是瓶颈，取消桌面端的按高度限宽 */
+    max-width: none;
   }
 
   .play__side {
@@ -629,15 +816,40 @@ a:focus-visible {
     width: 100%;
   }
 
+  /* 关卡行折成两行：名称 + 难度在第一行，描述独占第二行 */
+  .home__level {
+    grid-template-columns: 1fr auto;
+    gap: 3px 12px;
+  }
+
+  .home__level-name {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .home__level-meta {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .home__level-desc {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .editor__board-area {
+    max-width: none;
+  }
+
   .home__title {
-    font-size: 36px;
+    font-size: var(--fs-2xl);
   }
 }
 
 /* ===== 编辑器 ===== */
 .editor {
-  padding: 24px;
-  max-width: 1100px;
+  padding: 16px;
+  max-width: var(--page-max);
   margin: 0 auto;
 }
 
@@ -655,18 +867,20 @@ a:focus-visible {
 
 .piece-palette__item--active {
   border-color: var(--accent);
-  background: rgba(74, 143, 224, 0.2);
+  background: var(--copper-a16);
 }
 
 .editor__body {
   display: flex;
-  gap: 24px;
+  gap: 16px;
   align-items: flex-start;
 }
 
 .editor__board-area {
   flex: 1 1 420px;
   min-width: 0;
+  /* 与游戏页同理：由可用高度反推最大宽度，让棋盘连同工具栏一屏可见 */
+  max-width: calc((100vh - 250px) * 0.8);
 }
 
 .editor__side {
@@ -678,16 +892,14 @@ a:focus-visible {
 }
 
 .piece--selected {
-  box-shadow:
-    0 0 0 2px var(--accent),
-    var(--piece-shadow);
+  outline: 1px solid var(--copper);
+  outline-offset: 1px;
 }
 
 .piece--overlap {
   border-color: var(--danger);
-  box-shadow:
-    0 0 0 2px var(--danger),
-    var(--piece-shadow);
+  outline: 1px solid var(--danger);
+  outline-offset: 1px;
 }
 
 .puzzle-props {
@@ -695,7 +907,7 @@ a:focus-visible {
   flex-direction: column;
   gap: 12px;
   padding: 12px;
-  border-radius: 10px;
+  border-radius: var(--r-md);
   background: var(--bg-panel);
   border: 1px solid var(--bg-panel-border);
 }
@@ -710,7 +922,7 @@ a:focus-visible {
 
 .puzzle-props__group h4 {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   color: var(--fg-dim);
 }
 
@@ -719,7 +931,7 @@ a:focus-visible {
   justify-content: space-between;
   align-items: center;
   gap: 8px;
-  font-size: 14px;
+  font-size: var(--fs-md);
 }
 
 .puzzle-props__field input,
@@ -728,14 +940,14 @@ a:focus-visible {
   background: var(--bg);
   color: var(--fg);
   border: 1px solid var(--bg-panel-border);
-  border-radius: 6px;
+  border-radius: var(--r-sm);
   padding: 4px 8px;
 }
 
 /* 说明性小字：与低饱和的提示文案保持一致的层级 */
 .puzzle-props__hint {
   margin: 4px 0 0;
-  font-size: 12px;
+  font-size: var(--fs-xs);
   line-height: 1.6;
   color: var(--fg-dim);
 }
@@ -745,7 +957,7 @@ a:focus-visible {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  font-size: 13px;
+  font-size: var(--fs-sm);
 }
 
 .puzzle-switcher__label {
@@ -758,7 +970,7 @@ a:focus-visible {
   background: var(--bg);
   color: var(--fg);
   border: 1px solid var(--bg-panel-border);
-  border-radius: 8px;
+  border-radius: var(--r-md);
 }
 
 .puzzle-props__remove {
@@ -769,17 +981,17 @@ a:focus-visible {
 .validation-panel {
   margin-top: 12px;
   padding: 12px;
-  border-radius: 10px;
-  font-size: 14px;
+  border-radius: var(--r-md);
+  font-size: var(--fs-md);
 }
 
 .validation-panel--ok {
-  background: rgba(80, 180, 120, 0.15);
-  border: 1px solid rgba(80, 180, 120, 0.5);
+  background: var(--ok-a16);
+  border: 1px solid var(--ok);
 }
 
 .validation-panel--error {
-  background: rgba(208, 101, 101, 0.12);
+  background: var(--danger-a12);
   border: 1px solid var(--danger);
 }
 
@@ -802,9 +1014,9 @@ a:focus-visible {
   margin: auto;
   width: min(92vw, 520px);
   height: fit-content;
-  padding: 20px;
-  border-radius: 16px;
-  background: rgba(16, 22, 42, 0.95);
+  padding: 16px;
+  border-radius: var(--r-lg);
+  background: var(--bg-panel);
   border: 1px solid var(--bg-panel-border);
   backdrop-filter: blur(12px);
   z-index: 100;
@@ -819,10 +1031,10 @@ a:focus-visible {
   background: var(--bg);
   color: var(--fg);
   border: 1px solid var(--bg-panel-border);
-  border-radius: 8px;
+  border-radius: var(--r-md);
   padding: 8px;
   font-family: ui-monospace, Consolas, monospace;
-  font-size: 12px;
+  font-size: var(--fs-xs);
 }
 
 .editor__dialog-actions {
@@ -850,8 +1062,8 @@ a:focus-visible {
 
 /* ===== 观测台 ===== */
 .observatory {
-  padding: 24px;
-  max-width: 1200px;
+  padding: 16px;
+  max-width: var(--page-max);
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -877,7 +1089,7 @@ a:focus-visible {
 
 .algorithm-selector__item--active {
   border-color: var(--accent);
-  background: rgba(74, 143, 224, 0.2);
+  background: var(--copper-a16);
 }
 
 .observatory__actions {
@@ -899,7 +1111,7 @@ a:focus-visible {
 
 .search-stats__item {
   padding: 10px 12px;
-  border-radius: 10px;
+  border-radius: var(--r-md);
   background: var(--bg-panel);
   border: 1px solid var(--bg-panel-border);
   display: flex;
@@ -908,12 +1120,12 @@ a:focus-visible {
 }
 
 .search-stats__label {
-  font-size: 12px;
+  font-size: var(--fs-xs);
   color: var(--fg-dim);
 }
 
 .search-stats__value {
-  font-size: 18px;
+  font-size: var(--fs-lg);
   font-variant-numeric: tabular-nums;
 }
 
@@ -932,7 +1144,7 @@ a:focus-visible {
   flex: 1 1 640px;
   min-width: 0;
   padding: 12px;
-  border-radius: 10px;
+  border-radius: var(--r-md);
   background: var(--bg-panel);
   border: 1px solid var(--bg-panel-border);
 }
@@ -948,7 +1160,7 @@ a:focus-visible {
 .node-inspector__empty,
 .algorithm-comparison__empty {
   color: var(--fg-dim);
-  font-size: 14px;
+  font-size: var(--fs-md);
 }
 
 .search-tree__edge {
@@ -977,7 +1189,7 @@ a:focus-visible {
 }
 
 .search-tree__node--selected {
-  stroke: #fff;
+  stroke: var(--fg);
   stroke-width: 2;
 }
 
@@ -997,7 +1209,7 @@ a:focus-visible {
 .search-timeline,
 .algorithm-comparison {
   padding: 12px;
-  border-radius: 10px;
+  border-radius: var(--r-md);
   background: var(--bg-panel);
   border: 1px solid var(--bg-panel-border);
 }
@@ -1006,14 +1218,14 @@ a:focus-visible {
 .search-timeline h3,
 .algorithm-comparison h3 {
   margin: 0 0 8px;
-  font-size: 14px;
+  font-size: var(--fs-md);
 }
 
 .node-inspector dl {
   margin: 0;
   display: grid;
   gap: 6px;
-  font-size: 13px;
+  font-size: var(--fs-sm);
 }
 
 .node-inspector dl > div {
@@ -1035,7 +1247,7 @@ a:focus-visible {
 
 .node-inspector__key {
   font-family: ui-monospace, Consolas, monospace;
-  font-size: 11px;
+  font-size: var(--fs-2xs);
 }
 
 .search-timeline svg {
@@ -1061,7 +1273,7 @@ a:focus-visible {
   display: flex;
   gap: 16px;
   align-items: center;
-  font-size: 12px;
+  font-size: var(--fs-xs);
   color: var(--fg-dim);
 }
 
@@ -1084,13 +1296,13 @@ a:focus-visible {
 .algorithm-comparison__charts {
   display: flex;
   flex-wrap: wrap;
-  gap: 24px;
+  gap: 16px;
   margin-top: 12px;
 }
 
 .algorithm-bars h4 {
   margin: 0 0 8px;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   color: var(--fg-dim);
 }
 
@@ -1098,7 +1310,7 @@ a:focus-visible {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+  font-size: var(--fs-xs);
   margin-bottom: 4px;
 }
 
@@ -1129,8 +1341,8 @@ a:focus-visible {
 
 /* ===== 关卡页 ===== */
 .levels {
-  padding: 24px;
-  max-width: 1100px;
+  padding: 16px;
+  max-width: var(--page-max);
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -1148,7 +1360,7 @@ a:focus-visible {
   align-items: center;
   gap: 16px;
   padding: 16px;
-  border-radius: 12px;
+  border-radius: var(--r-lg);
   background: var(--bg-panel);
   border: 1px solid var(--accent);
 }
@@ -1168,7 +1380,7 @@ a:focus-visible {
 .levels__hint {
   margin: 0;
   color: var(--fg-dim);
-  font-size: 14px;
+  font-size: var(--fs-md);
 }
 
 .levels__generator-form {
@@ -1183,7 +1395,7 @@ a:focus-visible {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 14px;
+  font-size: var(--fs-md);
   color: var(--fg-dim);
 }
 
@@ -1192,7 +1404,7 @@ a:focus-visible {
   background: var(--bg);
   color: var(--fg);
   border: 1px solid var(--bg-panel-border);
-  border-radius: 6px;
+  border-radius: var(--r-sm);
   padding: 6px 8px;
 }
 
@@ -1218,7 +1430,7 @@ a:focus-visible {
 .level-card {
   text-align: left;
   padding: 14px;
-  border-radius: 12px;
+  border-radius: var(--r-lg);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -1233,39 +1445,38 @@ a:focus-visible {
 
 .level-card__name {
   font-weight: 600;
-  font-size: 16px;
+  font-size: var(--fs-lg);
 }
 
 .level-card__tier {
-  font-size: 12px;
+  font-size: var(--fs-xs);
   padding: 2px 8px;
   border-radius: 999px;
-  border: 1px solid var(--bg-panel-border);
+  border: 1px solid var(--line-strong);
+  color: var(--fg-faint);
 }
 
-.level-card__tier--easy {
-  color: #7cc98f;
-  border-color: #7cc98f;
-}
-
+/* 难度递进只用铜色的强度表达，不引入第二个色相：
+   入门（中性最淡）→ 进阶（中性稍强）→ 困难（暗铜）→ 专家（亮铜 + 极淡铜底）。
+   早期版本用绿/红区分难度，既违反单一强调色，也让「专家」误读为危险。 */
 .level-card__tier--normal {
-  color: var(--accent);
-  border-color: var(--accent);
+  color: var(--fg-dim);
 }
 
 .level-card__tier--hard {
-  color: var(--goal);
-  border-color: var(--goal);
+  color: var(--copper-deep);
+  border-color: var(--copper-deep);
 }
 
 .level-card__tier--expert {
-  color: var(--danger);
-  border-color: var(--danger);
+  color: var(--copper);
+  border-color: var(--copper);
+  background: var(--copper-a08);
 }
 
 .level-card__desc {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   color: var(--fg-dim);
 }
 
@@ -1273,7 +1484,7 @@ a:focus-visible {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 12px;
+  font-size: var(--fs-xs);
   color: var(--fg-dim);
 }
 
@@ -1284,7 +1495,7 @@ a:focus-visible {
 
 .level-card__tag {
   padding: 1px 6px;
-  border-radius: 4px;
+  border-radius: var(--r-sm);
   background: rgba(255, 255, 255, 0.08);
 }
 
@@ -1296,14 +1507,14 @@ a:focus-visible {
 }
 
 .play__share-message {
-  font-size: 13px;
+  font-size: var(--fs-sm);
   color: var(--fg-dim);
 }
 
 .my-puzzles {
   margin-top: 12px;
   padding: 12px;
-  border-radius: 10px;
+  border-radius: var(--r-md);
   background: var(--bg-panel);
   border: 1px solid var(--bg-panel-border);
 }
@@ -1317,12 +1528,12 @@ a:focus-visible {
 
 .my-puzzles__header h4 {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--fs-md);
 }
 
 .my-puzzles__empty {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   color: var(--fg-dim);
 }
 
@@ -1340,7 +1551,7 @@ a:focus-visible {
   justify-content: space-between;
   align-items: center;
   gap: 8px;
-  font-size: 14px;
+  font-size: var(--fs-md);
 }
 
 .my-puzzles__load {
@@ -1357,7 +1568,7 @@ a:focus-visible {
 
 .my-puzzles__actions button {
   padding: 4px 8px;
-  font-size: 12px;
+  font-size: var(--fs-xs);
 }
 
 .my-puzzles__rename {
@@ -1371,69 +1582,20 @@ a:focus-visible {
   background: var(--bg);
   color: var(--fg);
   border: 1px solid var(--bg-panel-border);
-  border-radius: 6px;
+  border-radius: var(--r-sm);
   padding: 4px 8px;
-}
-
-/* ===== 首页（最终版） ===== */
-.home__features {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 12px;
-  width: min(92vw, 820px);
-}
-
-.home__feature {
-  padding: 14px;
-  border-radius: 12px;
-  background: var(--bg-panel);
-  border: 1px solid var(--bg-panel-border);
-}
-
-.home__feature h3 {
-  margin: 0 0 6px;
-  font-size: 15px;
-  color: var(--accent);
-}
-
-.home__feature p {
-  margin: 0;
-  font-size: 13px;
-  color: var(--fg-dim);
-}
-
-.home__entries {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  justify-content: center;
-}
-
-.home__entry {
-  padding: 10px 28px;
-  border-radius: 8px;
-  background: var(--bg-panel);
-  border: 1px solid var(--bg-panel-border);
-  color: var(--fg);
-  text-decoration: none;
-  font-size: 15px;
-}
-
-.home__entry--primary {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
 }
 
 /* ===== 关于页 ===== */
 .about {
-  padding: 24px;
-  max-width: 760px;
+  padding: 16px;
+  /* 与其他页面共用同一栅格：切换页面时内容左右边界不跳动 */
+  max-width: var(--page-max);
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  line-height: 1.7;
+  gap: 12px;
+  line-height: 1.6;
 }
 
 .about h2 {
@@ -1442,13 +1604,13 @@ a:focus-visible {
 
 .about h3 {
   margin: 0 0 8px;
-  font-size: 16px;
+  font-size: var(--fs-lg);
   color: var(--accent);
 }
 
 .about section {
   padding: 14px;
-  border-radius: 12px;
+  border-radius: var(--r-lg);
   background: var(--bg-panel);
   border: 1px solid var(--bg-panel-border);
 }
@@ -1470,13 +1632,13 @@ a:focus-visible {
   align-items: center;
   justify-content: center;
   gap: 16px;
-  padding: 24px;
+  padding: 16px;
   text-align: center;
 }
 
 .error-boundary h1 {
   margin: 0;
-  font-size: 28px;
+  font-size: var(--fs-2xl);
 }
 
 .error-boundary p {
@@ -1489,10 +1651,10 @@ a:focus-visible {
   display: block;
   max-width: 560px;
   padding: 10px 14px;
-  border-radius: 8px;
+  border-radius: var(--r-md);
   background: var(--bg-panel);
   border: 1px solid var(--bg-panel-border);
-  font-size: 12px;
+  font-size: var(--fs-xs);
   color: var(--fg-dim);
   word-break: break-all;
 }

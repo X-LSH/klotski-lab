@@ -891,15 +891,81 @@ textarea {
   cursor: crosshair;
 }
 
-.piece--selected {
-  outline: 1px solid var(--copper);
-  outline-offset: 1px;
+/* ── 编辑器：可编辑棋子的悬停提示 ──
+   编辑器的棋子此前没有任何悬停反馈，用户不知道「这里能不能点」。
+   用 :not(--selected) 排除已选中的棋子 —— 选中态是最强状态，不该被悬停改写。 */
+.piece--editable {
+  cursor: pointer;
 }
 
+.piece--editable:not(.piece--selected):hover {
+  border-color: var(--copper-deep);
+  background: #2a2a31;
+}
+
+/* ── 编辑器：选中态 ──
+   「当前操作的是哪一个」必须一眼可辨，否则用户得先找、再确认，操作节奏就断了。
+   此前只有 1px 铜色 outline —— 在深色棋盘上几乎看不见（实测反馈：没有选中的感觉）。
+   现在四个信号叠加，强度明显高于悬停与「目标棋子」：
+     ① 双环：亮铜 2px + 外侧一道暗缝（让环在棋盘底色和相邻棋子上都立得住）
+     ② 四角锚点：工具界面里「对象被选中」的通用符号
+     ③ 面提亮一档并带一丝铜调
+     ④ 标签转为亮铜、加粗 */
+.piece--selected {
+  z-index: 3;
+  border-color: var(--copper-bright);
+  background: #3a2c20;
+  box-shadow:
+    0 0 0 2px var(--copper),
+    0 0 0 3px rgba(0, 0, 0, 0.6);
+}
+
+/* 四角锚点：四个图层各画一个方块，再分别定位到四角。
+   注意必须给出四个 background-image —— CSS 规定 position 列表比 image 列表长时，
+   多出来的位置会被直接忽略（曾因此只画出左上角一个方块）。 */
+.piece--selected::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  pointer-events: none;
+  background-image:
+    linear-gradient(var(--copper-bright), var(--copper-bright)),
+    linear-gradient(var(--copper-bright), var(--copper-bright)),
+    linear-gradient(var(--copper-bright), var(--copper-bright)),
+    linear-gradient(var(--copper-bright), var(--copper-bright));
+  background-size: 5px 5px;
+  background-position:
+    left top,
+    right top,
+    left bottom,
+    right bottom;
+  background-repeat: no-repeat;
+}
+
+.piece--selected .piece__label {
+  color: var(--copper-bright);
+  font-weight: 600;
+}
+
+/* 重叠是「必须马上处理」的警示：用状态色接管选中环，但四角锚点保留
+   （仍标记着「被选中的是这一个」），只换成警示色。 */
 .piece--overlap {
   border-color: var(--danger);
-  outline: 1px solid var(--danger);
-  outline-offset: 1px;
+  box-shadow:
+    0 0 0 2px var(--danger),
+    0 0 0 3px rgba(0, 0, 0, 0.6);
+}
+
+.piece--overlap.piece--selected::after {
+  background-image:
+    linear-gradient(var(--danger), var(--danger)),
+    linear-gradient(var(--danger), var(--danger)),
+    linear-gradient(var(--danger), var(--danger)),
+    linear-gradient(var(--danger), var(--danger));
+}
+
+.piece--overlap .piece__label {
+  color: var(--danger);
 }
 
 .puzzle-props {
@@ -950,6 +1016,41 @@ textarea {
   font-size: var(--fs-xs);
   line-height: 1.6;
   color: var(--fg-dim);
+}
+
+/* ── 属性面板里的「选中棋子」区块 ──
+   与棋盘上的选中环呼应：面板这边也要一眼看出「当前操作的是哪个」，
+   否则用户点了棋盘上的棋子，还得在面板里自己找对应的那一栏。 */
+.puzzle-props__group--selected {
+  padding: 8px 10px;
+  border: 1px solid var(--copper-deep);
+  border-left-width: 3px;
+  border-radius: var(--r-md);
+  background: var(--copper-a08);
+}
+
+.puzzle-props__group--selected h4 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--fg);
+}
+
+.puzzle-props__badge {
+  padding: 1px 6px;
+  border-radius: var(--r-sm);
+  background: var(--copper);
+  color: #14100c;
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  letter-spacing: var(--track-label);
+}
+
+.puzzle-props__meta {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--copper-bright);
+  font-variant-numeric: tabular-nums;
 }
 
 /* 谜题切换器：置于游戏页侧栏顶部，是进入游戏后的第一操作 */

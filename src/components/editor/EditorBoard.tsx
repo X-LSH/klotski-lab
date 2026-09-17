@@ -93,7 +93,9 @@ export default function EditorBoard({
     if (tool !== 'select') return;
     onSelect(piece.id);
     if (!boardRef.current) return;
-    event.currentTarget.setPointerCapture(event.pointerId);
+    // 指针捕获让拖动在指针离开元素后仍能持续；
+    // jsdom 与部分旧 WebView 不实现该 API，缺失时跳过 —— 选中与拖动逻辑不依赖它
+    event.currentTarget.setPointerCapture?.(event.pointerId);
     dragRef.current = {
       pieceId: piece.id,
       startClientX: event.clientX,
@@ -158,10 +160,13 @@ export default function EditorBoard({
         </div>
       )}
       {puzzle.pieces.map((piece) => {
+        const isSelected = piece.id === selectedId;
         const classes = [
           'piece',
+          // 编辑器的棋子可点选 / 可拖动，需要悬停提示
+          'piece--editable',
           piece.id === puzzle.goal.pieceId ? 'piece--goal' : '',
-          piece.id === selectedId ? 'piece--selected' : '',
+          isSelected ? 'piece--selected' : '',
           overlappingIds.has(piece.id) ? 'piece--overlap' : '',
         ]
           .filter(Boolean)
@@ -171,6 +176,8 @@ export default function EditorBoard({
             key={piece.id}
             className={classes}
             role="button"
+            /* 把「已选中」也告诉辅助技术：视觉之外再多一条通路 */
+            aria-pressed={isSelected}
             aria-label={`编辑棋子 ${piece.label ?? piece.id}`}
             style={{
               left: `${(piece.x / boardW) * 100}%`,

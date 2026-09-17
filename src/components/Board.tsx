@@ -77,7 +77,9 @@ export default function Board({ puzzle, state, interactive, onMove }: BoardProps
   const handleDragStart = (pieceId: string, event: ReactPointerEvent<HTMLDivElement>) => {
     if (!interactive || !boardRef.current) return;
     event.preventDefault();
-    event.currentTarget.setPointerCapture(event.pointerId);
+    // 指针捕获让拖动在指针离开元素后仍能持续；
+    // jsdom 与部分旧 WebView 不实现该 API，缺失时跳过 —— 选中与拖动逻辑不依赖它
+    event.currentTarget.setPointerCapture?.(event.pointerId);
     dragRef.current = {
       pieceId,
       startClientX: event.clientX,

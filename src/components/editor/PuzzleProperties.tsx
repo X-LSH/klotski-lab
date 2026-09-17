@@ -62,12 +62,18 @@ export default function PuzzleProperties({
         />
       </label>
 
-      {/* 选中棋子：名称完全自定义，不局限于华容道角色 */}
+      {/* 选中棋子：名称完全自定义，不局限于华容道角色。
+          该区块带「已选中」标记与左侧铜色边，与棋盘上的选中环呼应 ——
+          否则用户得自己在面板里找「我刚才点的是哪个」。 */}
       {selected && (
-        <div className="puzzle-props__group">
+        <div className="puzzle-props__group puzzle-props__group--selected">
           <h4>
-            选中棋子（{selected.width}×{selected.height}）
+            <span className="puzzle-props__badge">已选中</span>
+            棋子（{selected.width}×{selected.height}）
           </h4>
+          <p className="puzzle-props__meta">
+            位于第 {selected.x + 1} 列、第 {selected.y + 1} 行
+          </p>
           <label className="puzzle-props__field">
             <span>名称</span>
             <input
